@@ -6,6 +6,7 @@ import subprocess
 from pathlib import Path
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from typing import Literal
@@ -13,6 +14,19 @@ import yt_dlp
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
+
+STATIC_DIR = Path("static")
+STATIC_DIR.mkdir(exist_ok=True)
+
+
+@app.get("/robots.txt", include_in_schema=False)
+async def robots():
+    return FileResponse("static/robots.txt", media_type="text/plain")
+
+
+@app.get("/sitemap.xml", include_in_schema=False)
+async def sitemap():
+    return FileResponse("static/sitemap.xml", media_type="application/xml")
 
 DOWNLOAD_DIR = Path("downloads")
 DOWNLOAD_DIR.mkdir(exist_ok=True)

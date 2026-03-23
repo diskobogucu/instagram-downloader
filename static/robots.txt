@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Disallow: /file/
+Disallow: /fetch
+Disallow: /convert
+Disallow: /progress/
+Disallow: /cancel/
+Disallow: /info
+
+Sitemap: https://videodrop.live/sitemap.xml
