@@ -8,15 +8,26 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 from pydantic import BaseModel
 from typing import Literal
 import yt_dlp
 
+limiter = Limiter(key_func=get_remote_address)
 app = FastAPI()
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 templates = Jinja2Templates(directory="templates")
 
 STATIC_DIR = Path("static")
 STATIC_DIR.mkdir(exist_ok=True)
+
+
+@app.get("/favicon.svg", include_in_schema=False)
+async def favicon():
+    return FileResponse("static/favicon.svg", media_type="image/svg+xml")
 
 
 @app.get("/robots.txt", include_in_schema=False)
@@ -169,7 +180,8 @@ async def index(request: Request):
 
 
 @app.post("/info")
-async def get_video_info(data: InfoRequest):
+@limiter.limit("20/minute")
+async def get_video_info(request: Request, data: InfoRequest):
     url = data.url.strip()
 
     if not url:
@@ -235,7 +247,8 @@ async def get_video_info(data: InfoRequest):
 
 
 @app.post("/fetch")
-async def fetch_video(data: FetchRequest):
+@limiter.limit("10/minute")
+async def fetch_video(request: Request, data: FetchRequest):
     url = data.url.strip()
     quality = data.quality if data.quality in QUALITY_FORMATS else "auto"
 
