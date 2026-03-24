@@ -98,7 +98,7 @@ DOWNLOAD_DIR.mkdir(exist_ok=True)
 
 MAX_AGE_SECONDS = 1800
 
-# request_id → progress dict
+# request_id → (progress dict, timestamp)
 progress_store: dict = {}
 # request_id → cancel flag
 cancel_store: dict = {}
@@ -106,6 +106,28 @@ cancel_store: dict = {}
 geo_cache: dict = {}
 # live admin SSE subscribers
 live_subs: list = []
+
+# ── Periodic cleanup ─────────────────────────────────
+async def _cleanup_loop():
+    """Clean stale progress entries and limit geo_cache size every 5 min."""
+    while True:
+        await asyncio.sleep(300)
+        now = time.time()
+        # Remove progress entries older than 15 min
+        stale = [k for k, v in progress_store.items()
+                 if isinstance(v, dict) and now - v.get("_ts", now) > 900]
+        for k in stale:
+            progress_store.pop(k, None)
+            cancel_store.pop(k, None)
+        # Cap geo_cache at 500 entries
+        if len(geo_cache) > 500:
+            geo_cache.clear()
+        # Clean old download files
+        clean_old_files()
+
+@app.on_event("startup")
+async def _start_cleanup():
+    asyncio.create_task(_cleanup_loop())
 
 QUALITY_FORMATS = {
     "auto": "best[ext=mp4]/bestvideo[ext=mp4]+bestaudio/best",
@@ -406,7 +428,7 @@ async def fetch_video(request: Request, data: FetchRequest):
     if cookies_file.exists():
         ydl_opts["cookiefile"] = str(cookies_file)
 
-    progress_store[request_id] = {"status": "starting", "pct": 0}
+    progress_store[request_id] = {"status": "starting", "pct": 0, "_ts": time.time()}
     ip = get_real_ip(request)
     log_download(ip, url, "started", quality)
     geo = await get_geo(ip)
@@ -521,12 +543,15 @@ async def serve_file(file_id: str, filename: str = "video.mp4"):
 
 
 # ── Admin panel ───────────────────────────────────────
-def read_download_logs():
+def read_download_logs(max_lines: int = 2000):
     entries = []
     if not DOWNLOAD_LOG.exists():
         return entries
-    with open(DOWNLOAD_LOG) as f:
-        for line in f:
+    try:
+        with open(DOWNLOAD_LOG) as f:
+            # Only read last max_lines to avoid OOM on large logs
+            lines = f.readlines()[-max_lines:]
+        for line in lines:
             line = line.strip()
             if not line:
                 continue
@@ -534,6 +559,8 @@ def read_download_logs():
                 entries.append(json.loads(line))
             except Exception:
                 pass
+    except Exception:
+        pass
     return entries
 
 
@@ -562,19 +589,31 @@ async def admin_stats(_: None = Depends(require_admin)):
 
     recent = list(reversed(recent))[:50]
 
-    # Nginx visitor count
+    # Nginx visitor count — run in executor to avoid blocking event loop
     nginx_log = Path("/var/log/nginx/access.log")
-    visitors_today = 0
-    total_visitors = 0
-    if nginx_log.exists():
-        with open(nginx_log) as f:
-            for line in f:
+
+    def _count_visitors():
+        v_today = 0
+        v_total = 0
+        if not nginx_log.exists():
+            return v_today, v_total
+        try:
+            # Only read last 50k lines max to avoid OOM
+            with open(nginx_log) as f:
+                lines = f.readlines()[-50000:]
+            for line in lines:
                 if '"GET / ' in line or '"GET / H' in line:
                     if "bot" not in line.lower() and "ClaudeBot" not in line:
-                        total_visitors += 1
+                        v_total += 1
                         if today.replace("-", "/") in line or \
                            datetime.utcnow().strftime("%d/%b/%Y") in line:
-                            visitors_today += 1
+                            v_today += 1
+        except Exception:
+            pass
+        return v_today, v_total
+
+    loop = asyncio.get_event_loop()
+    visitors_today, total_visitors = await loop.run_in_executor(None, _count_visitors)
 
     return JSONResponse({
         "platform_counts": platform_counts,
