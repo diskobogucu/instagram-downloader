@@ -85,8 +85,11 @@ td.ts { color: #2e2e2e; font-family: monospace; font-size: 0.68rem; white-space:
 td.ip-cell { white-space: nowrap; color: #555; font-size: 0.72rem; }
 td.ip-cell .flag { margin-right: 5px; font-size: 0.9rem; }
 td.ip-cell .country { color: #333; font-size: 0.65rem; margin-left: 4px; }
-td.path-cell { font-family: monospace; font-size: 0.7rem; color: #666; max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-td.path-cell.highlight { color: #a78bfa; }
+td.path-cell { font-family: monospace; font-size: 0.7rem; color: #666; max-width: 340px; }
+td.path-cell .path-main { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+td.path-cell .dl-url { font-size: 0.62rem; color: #2a2a2a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
+td.path-cell.highlight .path-main { color: #a78bfa; }
+td.path-cell.highlight .dl-url { color: #4a3a6a; }
 td.dur-cell { color: #333; font-size: 0.68rem; white-space: nowrap; text-align: right; width: 70px; }
 td.dur-cell.fast { color: #22c55e44; }
 td.dur-cell.slow { color: #eab30888; }
@@ -138,6 +141,8 @@ td.dur-cell.very-slow { color: #ef444488; }
 .chart-box h2 { font-size: 0.72rem; color: #444; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px; }
 .chart-box canvas { max-height: 200px; }
 @media (max-width: 700px) { .charts { grid-template-columns: 1fr; } }
+
+tbody tr.historical td { opacity: 0.5; }
 
 /* ── Empty state ─────────────────────────── */
 .empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #222; gap: 8px; pointer-events: none; }
@@ -319,17 +324,20 @@ function durClass(ms) {
 function makeRow(r, animate) {
   const tr = document.createElement('tr');
   if (animate) tr.classList.add('new-row');
+  if (r._historical) tr.classList.add('historical');
 
   const isDownload = r.path === '/fetch' || r.path === '/info' || r.path === '/convert';
   const pathClass = 'path-cell' + (isDownload ? ' highlight' : '');
+  const shortUrl = (r.dl_url || '').replace(/^https?:\/\/(www\.)?/, '').slice(0, 60);
+  const urlLine = shortUrl ? `<div class="dl-url" title="${r.dl_url || ''}">${shortUrl}</div>` : '';
 
   tr.innerHTML = `
-    <td class="ts">${r.ts}</td>
+    <td class="ts">${r.ts || r.time || ''}</td>
     <td class="ip-cell"><span class="flag">${r.flag || '🌐'}</span>${r.ip}<span class="country">${r.country || ''}</span></td>
-    <td><span class="badge ${methodClass(r.method)}">${r.method}</span></td>
-    <td class="${pathClass}">${r.path}</td>
-    <td><span class="badge ${statusClass(r.status)}">${r.status}</span></td>
-    <td class="dur-cell ${durClass(r.ms)}">${r.ms}ms</td>
+    <td><span class="badge ${methodClass(r.method || 'GET')}">${r.method || 'GET'}</span></td>
+    <td class="${pathClass}"><div class="path-main">${r.path || '/'}</div>${urlLine}</td>
+    <td><span class="badge ${statusClass(r.status || 200)}">${r.status || 200}</span></td>
+    <td class="dur-cell ${durClass(r.ms || 0)}">${r.ms != null ? r.ms + 'ms' : '—'}</td>
   `;
   tr.addEventListener('click', () => showDetail(r, tr));
   return tr;
@@ -437,15 +445,20 @@ function showDetail(r, tr) {
   const content = document.getElementById('detailContent');
   panel.classList.add('open');
 
-  content.innerHTML = [
-    ['Time', r.ts],
-    ['IP Address', `${r.flag} ${r.ip}`],
+  const rows = [
+    ['Time', r.ts || r.time || '—'],
+    ['IP Address', `${r.flag || '🌐'} ${r.ip}`],
     ['Country', r.country || '—'],
-    ['Method', r.method],
-    ['Path', r.path],
-    ['Status', r.status],
-    ['Duration', `${r.ms} ms`],
-  ].map(([k, v]) => `
+    ['Method', r.method || '—'],
+    ['Path', r.path || '—'],
+    ['Status', r.status || '—'],
+    ['Duration', r.ms != null ? `${r.ms} ms` : '—'],
+  ];
+  if (r.dl_url) rows.push(['Download URL', r.dl_url]);
+  if (r.platform) rows.push(['Platform', r.platform]);
+  if (r.quality) rows.push(['Quality', r.quality]);
+
+  content.innerHTML = rows.map(([k, v]) => `
     <div class="detail-row">
       <div class="key">${k}</div>
       <div class="val">${v}</div>
@@ -523,7 +536,43 @@ async function loadStats() {
   });
 }
 
+// ── Load history from disk (persists across server restarts) ──
+async function loadHistory() {
+  try {
+    const res = await fetch('/admin/history');
+    if (!res.ok) return;
+    const entries = await res.json();
+    if (!entries.length) return;
+
+    entries.forEach(e => {
+      // Convert download log format to traffic row format
+      const row = {
+        ts: (e.ts || '').slice(11, 19),   // HH:MM:SS from "YYYY-MM-DD HH:MM:SS"
+        time: e.ts || '',
+        ip: e.ip || '—',
+        flag: '🌐',
+        country: '',
+        method: 'POST',
+        path: '/fetch',
+        status: e.status === 'started' ? 200 : 400,
+        ms: null,
+        dl_url: e.url || '',
+        platform: e.platform || '',
+        quality: e.quality || '',
+        _historical: true,
+      };
+      allRows.push(row);
+      counts.total++;
+      if (row.status >= 200 && row.status < 300) counts.s2++;
+    });
+
+    updateCounters();
+    applyFilters();
+  } catch (_) {}
+}
+
 // ── Init ──────────────────────────────────────────────────────
+loadHistory();
 connect();
 </script>
 

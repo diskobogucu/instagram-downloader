@@ -159,10 +159,20 @@ async def get_geo(ip: str) -> dict:
 @app.middleware("http")
 async def traffic_logger(request: Request, call_next):
     start = time.time()
+
+    # Peek at body for download endpoints to capture the target URL
+    dl_url = ""
+    path = request.url.path
+    if request.method == "POST" and path in ("/info", "/fetch"):
+        try:
+            raw = await request.body()  # Starlette caches this; route still reads fine
+            dl_url = json.loads(raw).get("url", "")
+        except Exception:
+            pass
+
     response = await call_next(request)
     ms = round((time.time() - start) * 1000)
-    # skip pinging health / SSE itself to avoid loops
-    path = request.url.path
+
     skip = path in ("/admin/live",) or path.startswith("/progress/")
     if not skip and live_subs:
         ip = request.client.host if request.client else "unknown"
@@ -176,6 +186,7 @@ async def traffic_logger(request: Request, call_next):
             "path": path,
             "status": response.status_code,
             "ms": ms,
+            "dl_url": dl_url,
         }
         for q in live_subs[:]:
             try:
@@ -574,6 +585,14 @@ async def admin_stats(_: None = Depends(require_admin)):
         "total_visitors": total_visitors,
         "total_downloads": sum(1 for e in entries if e.get("status") == "started"),
     })
+
+
+@app.get("/admin/history")
+async def admin_history(_: None = Depends(require_admin)):
+    """Return last 200 download attempts from disk log (persists across restarts)."""
+    entries = read_download_logs()
+    started = [e for e in entries if e.get("status") == "started"]
+    return JSONResponse(list(reversed(started))[:200])
 
 
 @app.get("/admin/live")
