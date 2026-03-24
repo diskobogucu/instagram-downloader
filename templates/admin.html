@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VideoDrop — Admin</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', sans-serif; background: #0a0a0a; color: #e8e8e8; min-height: 100vh; padding: 32px 24px; }
+  h1 { font-size: 1.4rem; font-weight: 600; margin-bottom: 28px; color: #fff; letter-spacing: -0.3px; }
+  h1 span { color: #555; font-weight: 400; font-size: 1rem; margin-left: 8px; }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 28px; }
+  .card { background: #111; border: 1px solid #1c1c1c; border-radius: 12px; padding: 20px; }
+  .card .label { font-size: 0.72rem; color: #555; letter-spacing: 0.5px; margin-bottom: 8px; text-transform: uppercase; }
+  .card .value { font-size: 2rem; font-weight: 700; color: #fff; }
+
+  .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 28px; }
+  .chart-box { background: #111; border: 1px solid #1c1c1c; border-radius: 12px; padding: 20px; }
+  .chart-box h2 { font-size: 0.8rem; color: #555; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; }
+  .chart-box canvas { max-height: 220px; }
+
+  .log-box { background: #111; border: 1px solid #1c1c1c; border-radius: 12px; padding: 20px; }
+  .log-box h2 { font-size: 0.8rem; color: #555; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+  th { text-align: left; color: #444; font-weight: 500; padding: 8px 12px; border-bottom: 1px solid #1c1c1c; }
+  td { padding: 9px 12px; border-bottom: 1px solid #151515; color: #aaa; }
+  td:first-child { color: #666; font-family: monospace; font-size: 0.7rem; }
+  tr:hover td { background: #141414; }
+
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.68rem; font-weight: 600; }
+  .badge-instagram { background: rgba(225,48,108,0.15); color: #e1306c; }
+  .badge-youtube   { background: rgba(255,0,0,0.1);     color: #ff4444; }
+  .badge-twitter   { background: rgba(29,161,242,0.1);  color: #1da1f2; }
+  .badge-facebook  { background: rgba(66,103,178,0.1);  color: #4267b2; }
+  .badge-unknown   { background: rgba(100,100,100,0.1); color: #666; }
+
+  .url-cell { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: monospace; font-size: 0.68rem; color: #555; }
+
+  .refresh { float: right; font-size: 0.72rem; color: #333; cursor: pointer; padding: 6px 12px; border: 1px solid #1c1c1c; border-radius: 6px; background: none; color: #555; transition: color 0.2s; }
+  .refresh:hover { color: #e8e8e8; }
+
+  @media (max-width: 700px) { .charts { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<h1>VideoDrop <span>admin panel</span> <button class="refresh" onclick="load()">↻ Yenile</button></h1>
+
+<div class="cards">
+  <div class="card"><div class="label">Bugün Ziyaretçi</div><div class="value" id="visitorsToday">—</div></div>
+  <div class="card"><div class="label">Toplam Ziyaretçi</div><div class="value" id="totalVisitors">—</div></div>
+  <div class="card"><div class="label">Toplam İndirme</div><div class="value" id="totalDownloads">—</div></div>
+  <div class="card"><div class="label">En Popüler Platform</div><div class="value" id="topPlatform">—</div></div>
+</div>
+
+<div class="charts">
+  <div class="chart-box">
+    <h2>Platforma Göre İndirme</h2>
+    <canvas id="platformChart"></canvas>
+  </div>
+  <div class="chart-box">
+    <h2>Bugün Saatlik Aktivite</h2>
+    <canvas id="hourlyChart"></canvas>
+  </div>
+  <div class="chart-box" style="grid-column: span 2">
+    <h2>Günlük İndirme Trendi</h2>
+    <canvas id="dailyChart"></canvas>
+  </div>
+</div>
+
+<div class="log-box">
+  <h2>Son İndirme Aktivitesi</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Zaman</th>
+        <th>IP</th>
+        <th>Platform</th>
+        <th>Kalite</th>
+        <th>URL</th>
+      </tr>
+    </thead>
+    <tbody id="logBody"></tbody>
+  </table>
+</div>
+
+<script>
+let platformChart, hourlyChart, dailyChart;
+
+const PLATFORM_COLORS = {
+  Instagram: '#e1306c',
+  YouTube:   '#ff4444',
+  Twitter:   '#1da1f2',
+  Facebook:  '#4267b2',
+  Unknown:   '#444',
+};
+
+function badgeClass(p) {
+  return 'badge badge-' + p.toLowerCase();
+}
+
+async function load() {
+  const res = await fetch('/admin/stats');
+  if (!res.ok) return;
+  const d = await res.json();
+
+  document.getElementById('visitorsToday').textContent   = d.visitors_today.toLocaleString();
+  document.getElementById('totalVisitors').textContent   = d.total_visitors.toLocaleString();
+  document.getElementById('totalDownloads').textContent  = d.total_downloads.toLocaleString();
+
+  const top = Object.entries(d.platform_counts).sort((a,b) => b[1]-a[1])[0];
+  document.getElementById('topPlatform').textContent = top ? top[0] : '—';
+
+  // Platform chart
+  const pLabels = Object.keys(d.platform_counts);
+  const pData   = Object.values(d.platform_counts);
+  const pColors = pLabels.map(l => PLATFORM_COLORS[l] || '#888');
+
+  if (platformChart) platformChart.destroy();
+  platformChart = new Chart(document.getElementById('platformChart'), {
+    type: 'doughnut',
+    data: { labels: pLabels, datasets: [{ data: pData, backgroundColor: pColors, borderWidth: 0 }] },
+    options: { plugins: { legend: { labels: { color: '#888', font: { size: 11 } } } }, cutout: '65%' }
+  });
+
+  // Hourly chart
+  const hLabels = Object.keys(d.hourly);
+  const hData   = Object.values(d.hourly);
+
+  if (hourlyChart) hourlyChart.destroy();
+  hourlyChart = new Chart(document.getElementById('hourlyChart'), {
+    type: 'bar',
+    data: { labels: hLabels, datasets: [{ data: hData, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 4 }] },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#444', font: { size: 10 } }, grid: { color: '#151515' } },
+        y: { ticks: { color: '#444', font: { size: 10 } }, grid: { color: '#151515' } }
+      }
+    }
+  });
+
+  // Daily chart
+  const dLabels = Object.keys(d.daily).sort();
+  const dData   = dLabels.map(k => d.daily[k]);
+
+  if (dailyChart) dailyChart.destroy();
+  dailyChart = new Chart(document.getElementById('dailyChart'), {
+    type: 'line',
+    data: { labels: dLabels, datasets: [{
+      data: dData,
+      borderColor: '#e8e8e8',
+      backgroundColor: 'rgba(232,232,232,0.05)',
+      borderWidth: 1.5,
+      pointRadius: 3,
+      tension: 0.4,
+      fill: true,
+    }]},
+    options: {
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#444', font: { size: 10 } }, grid: { color: '#151515' } },
+        y: { ticks: { color: '#444', font: { size: 10 } }, grid: { color: '#151515' } }
+      }
+    }
+  });
+
+  // Log table
+  const tbody = document.getElementById('logBody');
+  tbody.innerHTML = '';
+  d.recent.forEach(e => {
+    const tr = document.createElement('tr');
+    const shortUrl = (e.url || '').replace(/^https?:\/\/(www\.)?/, '');
+    tr.innerHTML = `
+      <td>${e.ts || ''}</td>
+      <td>${e.ip || ''}</td>
+      <td><span class="${badgeClass(e.platform || 'unknown')}">${e.platform || '?'}</span></td>
+      <td>${e.quality || '—'}</td>
+      <td class="url-cell" title="${e.url || ''}">${shortUrl}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+load();
+setInterval(load, 30000); // 30 saniyede bir otomatik yenile
+</script>
+
+</body>
+</html>

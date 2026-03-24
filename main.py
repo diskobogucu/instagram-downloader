@@ -3,17 +3,63 @@ import json
 import time
 import asyncio
 import subprocess
+import logging
+import secrets
+from datetime import datetime
 from pathlib import Path
-from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
+from fastapi import FastAPI, Request, HTTPException, Depends
+from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from pydantic import BaseModel
 from typing import Literal
 import yt_dlp
+
+# ── Download logger ───────────────────────────────────
+DOWNLOAD_LOG = Path("/var/log/videodrop-downloads.log")
+dl_logger = logging.getLogger("videodrop.downloads")
+dl_logger.setLevel(logging.INFO)
+try:
+    fh = logging.FileHandler(DOWNLOAD_LOG)
+    fh.setFormatter(logging.Formatter("%(message)s"))
+    dl_logger.addHandler(fh)
+except Exception:
+    pass  # if /var/log not writable (local dev), skip
+
+def detect_platform(url: str) -> str:
+    if "instagram.com" in url: return "Instagram"
+    if "youtube.com" in url or "youtu.be" in url: return "YouTube"
+    if "twitter.com" in url or "x.com" in url: return "Twitter"
+    if "facebook.com" in url or "fb.watch" in url: return "Facebook"
+    return "Unknown"
+
+def log_download(ip: str, url: str, status: str, quality: str = ""):
+    platform = detect_platform(url)
+    entry = json.dumps({
+        "ts": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+        "ip": ip,
+        "platform": platform,
+        "url": url,
+        "quality": quality,
+        "status": status,
+    })
+    dl_logger.info(entry)
+
+# ── Admin auth ────────────────────────────────────────
+security = HTTPBasic()
+ADMIN_USER = "admin"
+ADMIN_PASS = "Videodrop2026!"
+
+def require_admin(credentials: HTTPBasicCredentials = Depends(security)):
+    ok_user = secrets.compare_digest(credentials.username, ADMIN_USER)
+    ok_pass = secrets.compare_digest(credentials.password, ADMIN_PASS)
+    if not (ok_user and ok_pass):
+        raise HTTPException(status_code=401, detail="Unauthorized",
+                            headers={"WWW-Authenticate": "Basic"})
 
 limiter = Limiter(key_func=get_remote_address)
 app = FastAPI()
@@ -243,6 +289,8 @@ async def get_video_info(request: Request, data: InfoRequest):
     title = info.get("title", "video")
     safe_title = "".join(c for c in title if c.isalnum() or c in (" ", "-", "_")).strip() or "video"
 
+    ip = request.client.host if request.client else "unknown"
+    log_download(ip, url, "info")
     return {"title": safe_title, "qualities": available}
 
 
@@ -292,6 +340,8 @@ async def fetch_video(request: Request, data: FetchRequest):
         ydl_opts["cookiefile"] = str(cookies_file)
 
     progress_store[request_id] = {"status": "starting", "pct": 0}
+    ip = request.client.host if request.client else "unknown"
+    log_download(ip, url, "started", quality)
     asyncio.create_task(do_download(request_id, file_id, url, ydl_opts))
 
     return {"request_id": request_id}
@@ -394,3 +444,76 @@ async def serve_file(file_id: str, filename: str = "video.mp4"):
     media_type = "audio/mpeg" if ext == "mp3" else "video/mp4"
 
     return FileResponse(path=matched, filename=filename, media_type=media_type)
+
+
+# ── Admin panel ───────────────────────────────────────
+def read_download_logs():
+    entries = []
+    if not DOWNLOAD_LOG.exists():
+        return entries
+    with open(DOWNLOAD_LOG) as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                entries.append(json.loads(line))
+            except Exception:
+                pass
+    return entries
+
+
+@app.get("/admin/stats")
+async def admin_stats(_: None = Depends(require_admin)):
+    entries = read_download_logs()
+    today = datetime.utcnow().strftime("%Y-%m-%d")
+
+    platform_counts = {}
+    hourly = {str(h).zfill(2): 0 for h in range(24)}
+    recent = []
+    daily = {}
+
+    for e in entries:
+        if e.get("status") != "started":
+            continue
+        p = e.get("platform", "Unknown")
+        platform_counts[p] = platform_counts.get(p, 0) + 1
+        ts = e.get("ts", "")
+        day = ts[:10]
+        daily[day] = daily.get(day, 0) + 1
+        if ts.startswith(today):
+            hour = ts[11:13]
+            hourly[hour] = hourly.get(hour, 0) + 1
+        recent.append(e)
+
+    recent = list(reversed(recent))[:50]
+
+    # Nginx visitor count
+    nginx_log = Path("/var/log/nginx/access.log")
+    visitors_today = 0
+    total_visitors = 0
+    if nginx_log.exists():
+        with open(nginx_log) as f:
+            for line in f:
+                if '"GET / ' in line or '"GET / H' in line:
+                    if "bot" not in line.lower() and "ClaudeBot" not in line:
+                        total_visitors += 1
+                        if today.replace("-", "/") in line or \
+                           datetime.utcnow().strftime("%d/%b/%Y") in line:
+                            visitors_today += 1
+
+    return JSONResponse({
+        "platform_counts": platform_counts,
+        "hourly": hourly,
+        "daily": daily,
+        "recent": recent,
+        "visitors_today": visitors_today,
+        "total_visitors": total_visitors,
+        "total_downloads": sum(1 for e in entries if e.get("status") == "started"),
+    })
+
+
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_panel(_: None = Depends(require_admin)):
+    html = Path("templates/admin.html").read_text(encoding="utf-8")
+    return HTMLResponse(html)
