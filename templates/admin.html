@@ -81,10 +81,9 @@ tbody tr.new-row { animation: slideIn 0.25s ease; }
 @keyframes slideIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 
 td { padding: 7px 14px; vertical-align: middle; }
-td.ts { color: #888; font-family: monospace; font-size: 0.68rem; white-space: nowrap; width: 80px; }
+td.ts { color: #888; font-family: monospace; font-size: 0.66rem; white-space: nowrap; width: 180px; }
 td.ip-cell { white-space: nowrap; color: #aaa; font-size: 0.72rem; }
-td.ip-cell .flag { margin-right: 5px; font-size: 0.9rem; }
-td.ip-cell .country { color: #666; font-size: 0.65rem; margin-left: 4px; }
+td.ip-cell .flag { margin-right: 6px; font-size: 1.1rem; vertical-align: middle; }
 td.path-cell { font-family: monospace; font-size: 0.7rem; color: #999; max-width: 340px; }
 td.path-cell .path-main { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 td.path-cell .dl-url { font-size: 0.62rem; color: #555; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
@@ -255,22 +254,33 @@ let dlOnly = false;
 
 let platformChart, hourlyChart, dailyChart;
 
-// Convert UTC time string to Turkey time (UTC+3)
+const MONTHS_TR = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+
+// Convert UTC time string to Turkey full date+time
 function toTurkeyTime(utcStr) {
   if (!utcStr) return '';
-  // Handle "HH:MM:SS" format (from live SSE)
+  let d;
+  // "HH:MM:SS" from live SSE — use today's date
   if (utcStr.length === 8 && utcStr.includes(':')) {
+    const now = new Date();
     const [h, m, s] = utcStr.split(':').map(Number);
-    const th = (h + 3) % 24;
-    return String(th).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+    d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), h, m, s));
   }
-  // Handle "YYYY-MM-DD HH:MM:SS" format (from history)
-  if (utcStr.length >= 19) {
-    const d = new Date(utcStr + 'Z');
-    d.setHours(d.getHours() + 3);
-    return d.toTimeString().slice(0, 8);
+  // "YYYY-MM-DD HH:MM:SS" from history
+  else if (utcStr.length >= 19) {
+    d = new Date(utcStr + 'Z');
   }
-  return utcStr;
+  else return utcStr;
+
+  // Add 3 hours for Turkey
+  d.setTime(d.getTime() + 3 * 3600000);
+  const day = d.getUTCDate();
+  const mon = MONTHS_TR[d.getUTCMonth()];
+  const year = d.getUTCFullYear();
+  const time = String(d.getUTCHours()).padStart(2,'0') + ':' +
+               String(d.getUTCMinutes()).padStart(2,'0') + ':' +
+               String(d.getUTCSeconds()).padStart(2,'0');
+  return `${day} ${mon}, ${year}, ${time}`;
 }
 
 // ── Tab switching ─────────────────────────────────────────────
@@ -364,7 +374,7 @@ function makeRow(r, animate) {
 
   tr.innerHTML = `
     <td class="ts">${r.ts || r.time || ''}</td>
-    <td class="ip-cell"><span class="flag">${r.flag || '🌐'}</span>${r.ip}<span class="country">${r.country || ''}</span></td>
+    <td class="ip-cell"><span class="flag">${r.flag || '🌐'}</span>${r.ip}</td>
     <td><span class="badge ${methodClass(r.method || 'GET')}">${r.method || 'GET'}</span></td>
     <td class="${pathClass}"><div class="path-main">${r.path || '/'}</div>${urlLine}</td>
     <td><span class="badge ${statusClass(r.status || 200)}">${r.status || 200}</span></td>
