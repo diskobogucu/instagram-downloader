@@ -165,44 +165,13 @@ async def get_geo(ip: str) -> dict:
     return result
 
 
-@app.middleware("http")
-async def traffic_logger(request: Request, call_next):
-    start = time.time()
-
-    # Peek at body for download endpoints to capture the target URL
-    dl_url = ""
-    path = request.url.path
-    if request.method == "POST" and path in ("/info", "/fetch"):
+async def broadcast_live(event: dict):
+    """Send event to all live admin SSE subscribers."""
+    for q in live_subs[:]:
         try:
-            raw = await request.body()  # Starlette caches this; route still reads fine
-            dl_url = json.loads(raw).get("url", "")
+            q.put_nowait(event)
         except Exception:
             pass
-
-    response = await call_next(request)
-    ms = round((time.time() - start) * 1000)
-
-    skip = path in ("/admin/live",) or path.startswith("/progress/")
-    if not skip and live_subs:
-        ip = get_real_ip(request)
-        geo = await get_geo(ip)
-        event = {
-            "ts": datetime.utcnow().strftime("%H:%M:%S"),
-            "ip": ip,
-            "flag": geo["flag"],
-            "country": geo["country"],
-            "method": request.method,
-            "path": path,
-            "status": response.status_code,
-            "ms": ms,
-            "dl_url": dl_url,
-        }
-        for q in live_subs[:]:
-            try:
-                q.put_nowait(event)
-            except Exception:
-                pass
-    return response
 
 
 def clean_old_files():
@@ -374,6 +343,13 @@ async def get_video_info(request: Request, data: InfoRequest):
 
     ip = get_real_ip(request)
     log_download(ip, url, "info")
+    geo = await get_geo(ip)
+    await broadcast_live({
+        "ts": datetime.utcnow().strftime("%H:%M:%S"),
+        "ip": ip, "flag": geo["flag"], "country": geo["country"],
+        "method": "POST", "path": "/info", "status": 200,
+        "ms": 0, "dl_url": url,
+    })
     return {"title": safe_title, "qualities": available}
 
 
@@ -425,6 +401,13 @@ async def fetch_video(request: Request, data: FetchRequest):
     progress_store[request_id] = {"status": "starting", "pct": 0}
     ip = get_real_ip(request)
     log_download(ip, url, "started", quality)
+    geo = await get_geo(ip)
+    await broadcast_live({
+        "ts": datetime.utcnow().strftime("%H:%M:%S"),
+        "ip": ip, "flag": geo["flag"], "country": geo["country"],
+        "method": "POST", "path": "/fetch", "status": 200,
+        "ms": 0, "dl_url": url,
+    })
     asyncio.create_task(do_download(request_id, file_id, url, ydl_opts))
 
     return {"request_id": request_id}
