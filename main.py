@@ -94,6 +94,10 @@ MAX_AGE_SECONDS = 1800
 progress_store: dict = {}
 # request_id → cancel flag
 cancel_store: dict = {}
+# IP → {flag, country}
+geo_cache: dict = {}
+# live admin SSE subscribers
+live_subs: list = []
 
 QUALITY_FORMATS = {
     "auto": "best[ext=mp4]/bestvideo[ext=mp4]+bestaudio/best",
@@ -120,6 +124,65 @@ class FetchRequest(BaseModel):
 class ConvertRequest(BaseModel):
     file_id: str
     format: Literal["video", "mp3", "silent"]
+
+
+async def get_geo(ip: str) -> dict:
+    """Return {flag, country} for an IP, cached in geo_cache."""
+    if ip in ("127.0.0.1", "::1", "localhost", "unknown"):
+        return {"flag": "🏠", "country": "Local"}
+    if ip in geo_cache:
+        return geo_cache[ip]
+    try:
+        import urllib.request as urlreq
+        loop = asyncio.get_event_loop()
+
+        def _fetch():
+            with urlreq.urlopen(
+                f"http://ip-api.com/json/{ip}?fields=country,countryCode",
+                timeout=3,
+            ) as r:
+                return json.loads(r.read())
+
+        data = await loop.run_in_executor(None, _fetch)
+        cc = data.get("countryCode", "")
+        flag = (
+            "".join(chr(0x1F1E6 + ord(c) - ord("A")) for c in cc.upper())
+            if cc else "🌐"
+        )
+        result = {"flag": flag, "country": data.get("country", "")}
+    except Exception:
+        result = {"flag": "🌐", "country": ""}
+    geo_cache[ip] = result
+    return result
+
+
+@app.middleware("http")
+async def traffic_logger(request: Request, call_next):
+    start = time.time()
+    response = await call_next(request)
+    ms = round((time.time() - start) * 1000)
+    # skip pinging health / SSE itself to avoid loops
+    path = request.url.path
+    skip = path in ("/admin/live",) or path.startswith("/progress/")
+    if not skip and live_subs:
+        ip = request.client.host if request.client else "unknown"
+        geo = await get_geo(ip)
+        event = {
+            "ts": datetime.utcnow().strftime("%H:%M:%S"),
+            "ip": ip,
+            "flag": geo["flag"],
+            "country": geo["country"],
+            "method": request.method,
+            "path": path,
+            "status": response.status_code,
+            "ms": ms,
+        }
+        for q in live_subs[:]:
+            try:
+                q.put_nowait(event)
+            except Exception:
+                pass
+    return response
 
 
 def clean_old_files():
@@ -511,6 +574,35 @@ async def admin_stats(_: None = Depends(require_admin)):
         "total_visitors": total_visitors,
         "total_downloads": sum(1 for e in entries if e.get("status") == "started"),
     })
+
+
+@app.get("/admin/live")
+async def admin_live(request: Request, _: None = Depends(require_admin)):
+    """SSE stream of all HTTP traffic for the admin Traffic Inspector."""
+    q: asyncio.Queue = asyncio.Queue(maxsize=200)
+    live_subs.append(q)
+
+    async def generate():
+        try:
+            while True:
+                if await request.is_disconnected():
+                    break
+                try:
+                    event = await asyncio.wait_for(q.get(), timeout=15)
+                    yield f"data: {json.dumps(event)}\n\n"
+                except asyncio.TimeoutError:
+                    yield 'data: {"ping":1}\n\n'
+        finally:
+            try:
+                live_subs.remove(q)
+            except ValueError:
+                pass
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @app.get("/admin", response_class=HTMLResponse)

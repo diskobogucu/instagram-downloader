@@ -3,157 +3,511 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VideoDrop — Admin</title>
+<title>VideoDrop — Traffic Inspector</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Segoe UI', sans-serif; background: #0a0a0a; color: #e8e8e8; min-height: 100vh; padding: 32px 24px; }
-  h1 { font-size: 1.4rem; font-weight: 600; margin-bottom: 28px; color: #fff; letter-spacing: -0.3px; }
-  h1 span { color: #555; font-weight: 400; font-size: 1rem; margin-left: 8px; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: #080808; color: #d4d4d4; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
-  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 28px; }
-  .card { background: #111; border: 1px solid #1c1c1c; border-radius: 12px; padding: 20px; }
-  .card .label { font-size: 0.72rem; color: #555; letter-spacing: 0.5px; margin-bottom: 8px; text-transform: uppercase; }
-  .card .value { font-size: 2rem; font-weight: 700; color: #fff; }
+/* ── Top bar ─────────────────────────────── */
+.topbar {
+  display: flex; align-items: center; gap: 16px;
+  padding: 0 20px; height: 52px; flex-shrink: 0;
+  background: #0f0f0f; border-bottom: 1px solid #1a1a1a;
+}
+.topbar-title { font-size: 0.85rem; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 8px; }
+.topbar-title .dot { width: 7px; height: 7px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 6px #22c55e88; transition: background 0.3s, box-shadow 0.3s; }
+.topbar-title .dot.paused { background: #555; box-shadow: none; }
+.topbar-sep { flex: 1; }
 
-  .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 28px; }
-  .chart-box { background: #111; border: 1px solid #1c1c1c; border-radius: 12px; padding: 20px; }
-  .chart-box h2 { font-size: 0.8rem; color: #555; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; }
-  .chart-box canvas { max-height: 220px; }
+.counters { display: flex; gap: 12px; }
+.cnt { font-size: 0.72rem; color: #555; display: flex; align-items: center; gap: 5px; }
+.cnt b { font-weight: 600; }
+.cnt b.green { color: #22c55e; }
+.cnt b.yellow { color: #eab308; }
+.cnt b.red { color: #ef4444; }
 
-  .log-box { background: #111; border: 1px solid #1c1c1c; border-radius: 12px; padding: 20px; }
-  .log-box h2 { font-size: 0.8rem; color: #555; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; }
+.btn { cursor: pointer; border: 1px solid #222; border-radius: 6px; background: #141414; color: #888; font-size: 0.72rem; padding: 5px 12px; transition: color 0.15s, border-color 0.15s; }
+.btn:hover { color: #e8e8e8; border-color: #333; }
+.btn.active { color: #22c55e; border-color: #22c55e44; }
+.btn-tab { border-radius: 6px; padding: 5px 14px; }
+.btn-tab.sel { background: #1a1a1a; color: #e8e8e8; border-color: #2a2a2a; }
 
-  table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
-  th { text-align: left; color: #444; font-weight: 500; padding: 8px 12px; border-bottom: 1px solid #1c1c1c; }
-  td { padding: 9px 12px; border-bottom: 1px solid #151515; color: #aaa; }
-  td:first-child { color: #666; font-family: monospace; font-size: 0.7rem; }
-  tr:hover td { background: #141414; }
+/* ── Filter bar ──────────────────────────── */
+.filterbar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 20px; flex-shrink: 0;
+  background: #0c0c0c; border-bottom: 1px solid #151515;
+}
+.filter-select {
+  background: #111; border: 1px solid #1e1e1e; color: #888;
+  font-size: 0.72rem; padding: 4px 10px; border-radius: 6px; cursor: pointer;
+  appearance: none; padding-right: 24px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23555'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 8px center;
+}
+.filter-select:focus { outline: none; border-color: #333; color: #ccc; }
+.filter-input {
+  background: #111; border: 1px solid #1e1e1e; color: #ccc;
+  font-size: 0.72rem; padding: 4px 10px; border-radius: 6px; width: 200px;
+  font-family: monospace;
+}
+.filter-input:focus { outline: none; border-color: #333; }
+.filter-input::placeholder { color: #333; }
+.filter-sep { flex: 1; }
+.result-count { font-size: 0.7rem; color: #333; }
 
-  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.68rem; font-weight: 600; }
-  .badge-instagram { background: rgba(225,48,108,0.15); color: #e1306c; }
-  .badge-youtube   { background: rgba(255,0,0,0.1);     color: #ff4444; }
-  .badge-twitter   { background: rgba(29,161,242,0.1);  color: #1da1f2; }
-  .badge-facebook  { background: rgba(66,103,178,0.1);  color: #4267b2; }
-  .badge-unknown   { background: rgba(100,100,100,0.1); color: #666; }
+/* ── Main layout ─────────────────────────── */
+.main { flex: 1; display: flex; overflow: hidden; }
 
-  .url-cell { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: monospace; font-size: 0.68rem; color: #555; }
+/* ── Traffic table ───────────────────────── */
+.traffic-panel { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+.table-wrap { flex: 1; overflow-y: auto; }
+.table-wrap::-webkit-scrollbar { width: 4px; }
+.table-wrap::-webkit-scrollbar-track { background: transparent; }
+.table-wrap::-webkit-scrollbar-thumb { background: #1e1e1e; border-radius: 2px; }
 
-  .refresh { float: right; font-size: 0.72rem; color: #333; cursor: pointer; padding: 6px 12px; border: 1px solid #1c1c1c; border-radius: 6px; background: none; color: #555; transition: color 0.2s; }
-  .refresh:hover { color: #e8e8e8; }
+table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+thead th {
+  position: sticky; top: 0; z-index: 10;
+  background: #0c0c0c; border-bottom: 1px solid #1a1a1a;
+  padding: 8px 14px; text-align: left; color: #3a3a3a;
+  font-size: 0.68rem; font-weight: 500; letter-spacing: 0.5px; text-transform: uppercase;
+  user-select: none;
+}
+tbody tr { border-bottom: 1px solid #0f0f0f; transition: background 0.1s; cursor: default; }
+tbody tr:hover { background: #0f0f0f; }
+tbody tr.new-row { animation: slideIn 0.25s ease; }
+@keyframes slideIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 
-  @media (max-width: 700px) { .charts { grid-template-columns: 1fr; } }
+td { padding: 7px 14px; vertical-align: middle; }
+td.ts { color: #2e2e2e; font-family: monospace; font-size: 0.68rem; white-space: nowrap; width: 80px; }
+td.ip-cell { white-space: nowrap; color: #555; font-size: 0.72rem; }
+td.ip-cell .flag { margin-right: 5px; font-size: 0.9rem; }
+td.ip-cell .country { color: #333; font-size: 0.65rem; margin-left: 4px; }
+td.path-cell { font-family: monospace; font-size: 0.7rem; color: #666; max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+td.path-cell.highlight { color: #a78bfa; }
+td.dur-cell { color: #333; font-size: 0.68rem; white-space: nowrap; text-align: right; width: 70px; }
+td.dur-cell.fast { color: #22c55e44; }
+td.dur-cell.slow { color: #eab30888; }
+td.dur-cell.very-slow { color: #ef444488; }
+
+.badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 2px 7px; border-radius: 4px; font-size: 0.66rem; font-weight: 700;
+  letter-spacing: 0.3px; line-height: 1.4;
+}
+.m-GET    { background: rgba(59,130,246,0.12); color: #60a5fa; }
+.m-POST   { background: rgba(34,197,94,0.12);  color: #4ade80; }
+.m-DELETE { background: rgba(239,68,68,0.12);  color: #f87171; }
+.m-PUT    { background: rgba(234,179,8,0.12);  color: #facc15; }
+.m-PATCH  { background: rgba(168,85,247,0.12); color: #c084fc; }
+.m-HEAD   { background: rgba(100,100,100,0.1); color: #555; }
+.m-OTHER  { background: rgba(100,100,100,0.1); color: #555; }
+
+.s-2xx { background: rgba(34,197,94,0.1);  color: #4ade80; }
+.s-3xx { background: rgba(59,130,246,0.1); color: #60a5fa; }
+.s-4xx { background: rgba(234,179,8,0.12); color: #facc15; }
+.s-5xx { background: rgba(239,68,68,0.12); color: #f87171; }
+.s-unk { background: rgba(100,100,100,0.1); color: #555; }
+
+/* ── Detail panel ────────────────────────── */
+.detail-panel {
+  width: 340px; flex-shrink: 0;
+  background: #0c0c0c; border-left: 1px solid #151515;
+  overflow-y: auto; padding: 20px;
+  display: none;
+}
+.detail-panel.open { display: block; }
+.detail-panel h3 { font-size: 0.75rem; color: #444; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; }
+.detail-row { margin-bottom: 14px; }
+.detail-row .key { font-size: 0.68rem; color: #333; margin-bottom: 3px; }
+.detail-row .val { font-size: 0.78rem; color: #aaa; font-family: monospace; word-break: break-all; }
+.detail-close { float: right; cursor: pointer; color: #333; font-size: 1rem; }
+.detail-close:hover { color: #888; }
+
+/* ── Stats tab ───────────────────────────── */
+.stats-panel { flex: 1; overflow-y: auto; padding: 24px; display: none; }
+.stats-panel.open { display: block; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 24px; }
+.card { background: #111; border: 1px solid #1a1a1a; border-radius: 10px; padding: 18px; }
+.card .label { font-size: 0.68rem; color: #444; letter-spacing: 0.5px; margin-bottom: 8px; text-transform: uppercase; }
+.card .value { font-size: 1.8rem; font-weight: 700; color: #fff; }
+.charts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+.chart-box { background: #111; border: 1px solid #1a1a1a; border-radius: 10px; padding: 18px; }
+.chart-box h2 { font-size: 0.72rem; color: #444; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px; }
+.chart-box canvas { max-height: 200px; }
+@media (max-width: 700px) { .charts { grid-template-columns: 1fr; } }
+
+/* ── Empty state ─────────────────────────── */
+.empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #222; gap: 8px; pointer-events: none; }
+.empty svg { opacity: 0.3; }
+.empty p { font-size: 0.8rem; }
 </style>
 </head>
 <body>
 
-<h1>VideoDrop <span>admin panel</span> <button class="refresh" onclick="load()">↻ Yenile</button></h1>
+<!-- Top bar -->
+<div class="topbar">
+  <div class="topbar-title">
+    <div class="dot" id="liveDot"></div>
+    VideoDrop <span style="color:#333;font-weight:400;margin-left:2px">Traffic Inspector</span>
+  </div>
 
-<div class="cards">
-  <div class="card"><div class="label">Bugün Ziyaretçi</div><div class="value" id="visitorsToday">—</div></div>
-  <div class="card"><div class="label">Toplam Ziyaretçi</div><div class="value" id="totalVisitors">—</div></div>
-  <div class="card"><div class="label">Toplam İndirme</div><div class="value" id="totalDownloads">—</div></div>
-  <div class="card"><div class="label">En Popüler Platform</div><div class="value" id="topPlatform">—</div></div>
+  <div class="counters" id="counters">
+    <div class="cnt">Total <b id="cntTotal">0</b></div>
+    <div class="cnt">2xx <b class="green" id="cnt2xx">0</b></div>
+    <div class="cnt">4xx <b class="yellow" id="cnt4xx">0</b></div>
+    <div class="cnt">5xx <b class="red" id="cnt5xx">0</b></div>
+  </div>
+
+  <div class="topbar-sep"></div>
+
+  <button class="btn btn-tab sel" id="tabLive" onclick="switchTab('live')">Live</button>
+  <button class="btn btn-tab" id="tabStats" onclick="switchTab('stats')">Analytics</button>
+  <button class="btn active" id="pauseBtn" onclick="togglePause()">⏸ Pause</button>
+  <button class="btn" onclick="clearLog()">Clear</button>
 </div>
 
-<div class="charts">
-  <div class="chart-box">
-    <h2>Platforma Göre İndirme</h2>
-    <canvas id="platformChart"></canvas>
-  </div>
-  <div class="chart-box">
-    <h2>Bugün Saatlik Aktivite</h2>
-    <canvas id="hourlyChart"></canvas>
-  </div>
-  <div class="chart-box" style="grid-column: span 2">
-    <h2>Günlük İndirme Trendi</h2>
-    <canvas id="dailyChart"></canvas>
-  </div>
+<!-- Filter bar (live tab) -->
+<div class="filterbar" id="filterBar">
+  <select class="filter-select" id="fMethod" onchange="applyFilters()">
+    <option value="">All Methods</option>
+    <option>GET</option><option>POST</option><option>PUT</option>
+    <option>DELETE</option><option>PATCH</option><option>HEAD</option>
+  </select>
+  <select class="filter-select" id="fStatus" onchange="applyFilters()">
+    <option value="">All Status</option>
+    <option value="2">2xx</option>
+    <option value="3">3xx</option>
+    <option value="4">4xx</option>
+    <option value="5">5xx</option>
+  </select>
+  <input class="filter-input" id="fPath" placeholder="/path or keyword" oninput="applyFilters()">
+  <div class="filter-sep"></div>
+  <span class="result-count" id="resultCount"></span>
 </div>
 
-<div class="log-box">
-  <h2>Son İndirme Aktivitesi</h2>
-  <table>
-    <thead>
-      <tr>
-        <th>Zaman</th>
-        <th>IP</th>
-        <th>Platform</th>
-        <th>Kalite</th>
-        <th>URL</th>
-      </tr>
-    </thead>
-    <tbody id="logBody"></tbody>
-  </table>
+<!-- Main -->
+<div class="main">
+
+  <!-- Traffic panel (live tab) -->
+  <div class="traffic-panel" id="panelLive">
+    <div class="table-wrap" id="tableWrap">
+      <div class="empty" id="emptyState">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2z"/><path d="M12 6v6l4 2"/></svg>
+        <p>Waiting for traffic…</p>
+      </div>
+      <table id="trafficTable" style="display:none">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>IP</th>
+            <th>Method</th>
+            <th>Path</th>
+            <th>Status</th>
+            <th style="text-align:right">ms</th>
+          </tr>
+        </thead>
+        <tbody id="trafficBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Detail panel -->
+  <div class="detail-panel" id="detailPanel">
+    <span class="detail-close" onclick="closeDetail()">✕</span>
+    <h3>Request Detail</h3>
+    <div id="detailContent"></div>
+  </div>
+
+  <!-- Stats panel -->
+  <div class="stats-panel" id="panelStats">
+    <div class="cards">
+      <div class="card"><div class="label">Today's Visitors</div><div class="value" id="visitorsToday">—</div></div>
+      <div class="card"><div class="label">Total Visitors</div><div class="value" id="totalVisitors">—</div></div>
+      <div class="card"><div class="label">Total Downloads</div><div class="value" id="totalDownloads">—</div></div>
+      <div class="card"><div class="label">Top Platform</div><div class="value" id="topPlatform">—</div></div>
+    </div>
+    <div class="charts">
+      <div class="chart-box"><h2>Downloads by Platform</h2><canvas id="platformChart"></canvas></div>
+      <div class="chart-box"><h2>Today's Hourly Activity</h2><canvas id="hourlyChart"></canvas></div>
+      <div class="chart-box" style="grid-column:span 2"><h2>Daily Download Trend</h2><canvas id="dailyChart"></canvas></div>
+    </div>
+  </div>
 </div>
 
 <script>
+// ── State ─────────────────────────────────────────────────────
+let allRows = [];       // all received events
+let filtered = [];      // after filters
+let paused = false;
+let evtSource = null;
+let selectedRow = null;
+let counts = { total: 0, s2: 0, s4: 0, s5: 0 };
+
 let platformChart, hourlyChart, dailyChart;
 
-const PLATFORM_COLORS = {
-  Instagram: '#e1306c',
-  YouTube:   '#ff4444',
-  Twitter:   '#1da1f2',
-  Facebook:  '#4267b2',
-  Unknown:   '#444',
-};
-
-function badgeClass(p) {
-  return 'badge badge-' + p.toLowerCase();
+// ── Tab switching ─────────────────────────────────────────────
+function switchTab(tab) {
+  document.getElementById('panelLive').style.display = tab === 'live' ? '' : 'none';
+  document.getElementById('panelStats').style.display = tab === 'stats' ? '' : 'none';
+  document.getElementById('filterBar').style.display = tab === 'live' ? '' : 'none';
+  document.getElementById('tabLive').classList.toggle('sel', tab === 'live');
+  document.getElementById('tabStats').classList.toggle('sel', tab === 'stats');
+  if (tab === 'stats') loadStats();
 }
 
-async function load() {
+// ── Filters ───────────────────────────────────────────────────
+function applyFilters() {
+  const fm = document.getElementById('fMethod').value;
+  const fs = document.getElementById('fStatus').value;
+  const fp = document.getElementById('fPath').value.toLowerCase();
+
+  filtered = allRows.filter(r => {
+    if (fm && r.method !== fm) return false;
+    if (fs && !String(r.status).startsWith(fs)) return false;
+    if (fp && !r.path.toLowerCase().includes(fp)) return false;
+    return true;
+  });
+
+  rebuildTable();
+  document.getElementById('resultCount').textContent =
+    filtered.length < allRows.length ? `${filtered.length} / ${allRows.length}` : '';
+}
+
+// ── Table rendering ───────────────────────────────────────────
+function rebuildTable() {
+  const tbody = document.getElementById('trafficBody');
+  tbody.innerHTML = '';
+  filtered.forEach(r => tbody.appendChild(makeRow(r, false)));
+  updateTableVisibility();
+}
+
+function updateTableVisibility() {
+  const empty = document.getElementById('emptyState');
+  const table = document.getElementById('trafficTable');
+  if (allRows.length === 0) {
+    empty.style.display = 'flex';
+    table.style.display = 'none';
+  } else {
+    empty.style.display = 'none';
+    table.style.display = '';
+  }
+}
+
+function methodClass(m) {
+  const map = { GET:'GET', POST:'POST', DELETE:'DELETE', PUT:'PUT', PATCH:'PATCH', HEAD:'HEAD' };
+  return 'm-' + (map[m] || 'OTHER');
+}
+
+function statusClass(s) {
+  if (s >= 500) return 's-5xx';
+  if (s >= 400) return 's-4xx';
+  if (s >= 300) return 's-3xx';
+  if (s >= 200) return 's-2xx';
+  return 's-unk';
+}
+
+function durClass(ms) {
+  if (ms < 100) return 'fast';
+  if (ms < 800) return '';
+  if (ms < 2000) return 'slow';
+  return 'very-slow';
+}
+
+function makeRow(r, animate) {
+  const tr = document.createElement('tr');
+  if (animate) tr.classList.add('new-row');
+
+  const isDownload = r.path === '/fetch' || r.path === '/info' || r.path === '/convert';
+  const pathClass = 'path-cell' + (isDownload ? ' highlight' : '');
+
+  tr.innerHTML = `
+    <td class="ts">${r.ts}</td>
+    <td class="ip-cell"><span class="flag">${r.flag || '🌐'}</span>${r.ip}<span class="country">${r.country || ''}</span></td>
+    <td><span class="badge ${methodClass(r.method)}">${r.method}</span></td>
+    <td class="${pathClass}">${r.path}</td>
+    <td><span class="badge ${statusClass(r.status)}">${r.status}</span></td>
+    <td class="dur-cell ${durClass(r.ms)}">${r.ms}ms</td>
+  `;
+  tr.addEventListener('click', () => showDetail(r, tr));
+  return tr;
+}
+
+// ── Auto-scroll ───────────────────────────────────────────────
+function scrollToBottom() {
+  const wrap = document.getElementById('tableWrap');
+  wrap.scrollTop = wrap.scrollHeight;
+}
+
+// ── Counters ──────────────────────────────────────────────────
+function updateCounters() {
+  document.getElementById('cntTotal').textContent = counts.total;
+  document.getElementById('cnt2xx').textContent = counts.s2;
+  document.getElementById('cnt4xx').textContent = counts.s4;
+  document.getElementById('cnt5xx').textContent = counts.s5;
+}
+
+// ── SSE ───────────────────────────────────────────────────────
+function connect() {
+  if (evtSource) evtSource.close();
+  evtSource = new EventSource('/admin/live');
+  evtSource.onmessage = (e) => {
+    const d = JSON.parse(e.data);
+    if (d.ping) return;
+
+    counts.total++;
+    if (d.status >= 200 && d.status < 300) counts.s2++;
+    else if (d.status >= 400 && d.status < 500) counts.s4++;
+    else if (d.status >= 500) counts.s5++;
+    updateCounters();
+
+    allRows.unshift(d);   // newest first internally
+    if (allRows.length > 500) allRows.pop();
+
+    if (!paused) {
+      // Check filters
+      const fm = document.getElementById('fMethod').value;
+      const fs = document.getElementById('fStatus').value;
+      const fp = document.getElementById('fPath').value.toLowerCase();
+      const pass =
+        (!fm || d.method === fm) &&
+        (!fs || String(d.status).startsWith(fs)) &&
+        (!fp || d.path.toLowerCase().includes(fp));
+
+      if (pass) {
+        filtered.unshift(d);
+        const tbody = document.getElementById('trafficBody');
+        tbody.insertBefore(makeRow(d, true), tbody.firstChild);
+        updateTableVisibility();
+        // Trim DOM to 300 rows
+        while (tbody.rows.length > 300) tbody.deleteRow(tbody.rows.length - 1);
+      }
+      updateCounters();
+    }
+  };
+  evtSource.onerror = () => {
+    setLiveDot(false);
+    setTimeout(connect, 3000);
+  };
+  evtSource.onopen = () => setLiveDot(true);
+}
+
+function setLiveDot(live) {
+  const dot = document.getElementById('liveDot');
+  dot.classList.toggle('paused', !live);
+}
+
+// ── Pause / Resume ────────────────────────────────────────────
+function togglePause() {
+  paused = !paused;
+  const btn = document.getElementById('pauseBtn');
+  const dot = document.getElementById('liveDot');
+  if (paused) {
+    btn.textContent = '▶ Resume';
+    btn.classList.remove('active');
+    dot.classList.add('paused');
+  } else {
+    btn.textContent = '⏸ Pause';
+    btn.classList.add('active');
+    dot.classList.remove('paused');
+    // Rebuild table with current allRows
+    applyFilters();
+  }
+}
+
+// ── Clear ─────────────────────────────────────────────────────
+function clearLog() {
+  allRows = []; filtered = [];
+  counts = { total: 0, s2: 0, s4: 0, s5: 0 };
+  document.getElementById('trafficBody').innerHTML = '';
+  updateTableVisibility();
+  updateCounters();
+  closeDetail();
+}
+
+// ── Detail panel ──────────────────────────────────────────────
+function showDetail(r, tr) {
+  if (selectedRow) selectedRow.style.background = '';
+  selectedRow = tr;
+  tr.style.background = '#141414';
+
+  const panel = document.getElementById('detailPanel');
+  const content = document.getElementById('detailContent');
+  panel.classList.add('open');
+
+  content.innerHTML = [
+    ['Time', r.ts],
+    ['IP Address', `${r.flag} ${r.ip}`],
+    ['Country', r.country || '—'],
+    ['Method', r.method],
+    ['Path', r.path],
+    ['Status', r.status],
+    ['Duration', `${r.ms} ms`],
+  ].map(([k, v]) => `
+    <div class="detail-row">
+      <div class="key">${k}</div>
+      <div class="val">${v}</div>
+    </div>
+  `).join('');
+}
+
+function closeDetail() {
+  if (selectedRow) selectedRow.style.background = '';
+  selectedRow = null;
+  document.getElementById('detailPanel').classList.remove('open');
+}
+
+// ── Analytics ─────────────────────────────────────────────────
+async function loadStats() {
   const res = await fetch('/admin/stats');
   if (!res.ok) return;
   const d = await res.json();
 
-  document.getElementById('visitorsToday').textContent   = d.visitors_today.toLocaleString();
-  document.getElementById('totalVisitors').textContent   = d.total_visitors.toLocaleString();
-  document.getElementById('totalDownloads').textContent  = d.total_downloads.toLocaleString();
+  document.getElementById('visitorsToday').textContent  = d.visitors_today.toLocaleString();
+  document.getElementById('totalVisitors').textContent  = d.total_visitors.toLocaleString();
+  document.getElementById('totalDownloads').textContent = d.total_downloads.toLocaleString();
 
-  const top = Object.entries(d.platform_counts).sort((a,b) => b[1]-a[1])[0];
+  const top = Object.entries(d.platform_counts).sort((a, b) => b[1] - a[1])[0];
   document.getElementById('topPlatform').textContent = top ? top[0] : '—';
 
-  // Platform chart
+  const COLORS = { Instagram:'#e1306c', YouTube:'#ff4444', Twitter:'#1da1f2', Facebook:'#4267b2', Unknown:'#444' };
   const pLabels = Object.keys(d.platform_counts);
   const pData   = Object.values(d.platform_counts);
-  const pColors = pLabels.map(l => PLATFORM_COLORS[l] || '#888');
+  const pColors = pLabels.map(l => COLORS[l] || '#888');
 
   if (platformChart) platformChart.destroy();
   platformChart = new Chart(document.getElementById('platformChart'), {
     type: 'doughnut',
     data: { labels: pLabels, datasets: [{ data: pData, backgroundColor: pColors, borderWidth: 0 }] },
-    options: { plugins: { legend: { labels: { color: '#888', font: { size: 11 } } } }, cutout: '65%' }
+    options: { plugins: { legend: { labels: { color: '#555', font: { size: 11 } } } }, cutout: '65%' }
   });
 
-  // Hourly chart
   const hLabels = Object.keys(d.hourly);
   const hData   = Object.values(d.hourly);
-
   if (hourlyChart) hourlyChart.destroy();
   hourlyChart = new Chart(document.getElementById('hourlyChart'), {
     type: 'bar',
-    data: { labels: hLabels, datasets: [{ data: hData, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 4 }] },
+    data: { labels: hLabels, datasets: [{ data: hData, backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 4 }] },
     options: {
       plugins: { legend: { display: false } },
       scales: {
-        x: { ticks: { color: '#444', font: { size: 10 } }, grid: { color: '#151515' } },
-        y: { ticks: { color: '#444', font: { size: 10 } }, grid: { color: '#151515' } }
+        x: { ticks: { color: '#333', font: { size: 10 } }, grid: { color: '#111' } },
+        y: { ticks: { color: '#333', font: { size: 10 } }, grid: { color: '#111' } }
       }
     }
   });
 
-  // Daily chart
   const dLabels = Object.keys(d.daily).sort();
   const dData   = dLabels.map(k => d.daily[k]);
-
   if (dailyChart) dailyChart.destroy();
   dailyChart = new Chart(document.getElementById('dailyChart'), {
     type: 'line',
     data: { labels: dLabels, datasets: [{
       data: dData,
-      borderColor: '#e8e8e8',
-      backgroundColor: 'rgba(232,232,232,0.05)',
+      borderColor: '#d4d4d4',
+      backgroundColor: 'rgba(212,212,212,0.04)',
       borderWidth: 1.5,
       pointRadius: 3,
       tension: 0.4,
@@ -162,31 +516,15 @@ async function load() {
     options: {
       plugins: { legend: { display: false } },
       scales: {
-        x: { ticks: { color: '#444', font: { size: 10 } }, grid: { color: '#151515' } },
-        y: { ticks: { color: '#444', font: { size: 10 } }, grid: { color: '#151515' } }
+        x: { ticks: { color: '#333', font: { size: 10 } }, grid: { color: '#111' } },
+        y: { ticks: { color: '#333', font: { size: 10 } }, grid: { color: '#111' } }
       }
     }
   });
-
-  // Log table
-  const tbody = document.getElementById('logBody');
-  tbody.innerHTML = '';
-  d.recent.forEach(e => {
-    const tr = document.createElement('tr');
-    const shortUrl = (e.url || '').replace(/^https?:\/\/(www\.)?/, '');
-    tr.innerHTML = `
-      <td>${e.ts || ''}</td>
-      <td>${e.ip || ''}</td>
-      <td><span class="${badgeClass(e.platform || 'unknown')}">${e.platform || '?'}</span></td>
-      <td>${e.quality || '—'}</td>
-      <td class="url-cell" title="${e.url || ''}">${shortUrl}</td>
-    `;
-    tbody.appendChild(tr);
-  });
 }
 
-load();
-setInterval(load, 30000); // 30 saniyede bir otomatik yenile
+// ── Init ──────────────────────────────────────────────────────
+connect();
 </script>
 
 </body>
