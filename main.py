@@ -62,7 +62,7 @@ def require_admin(credentials: HTTPBasicCredentials = Depends(security)):
                             headers={"WWW-Authenticate": "Basic"})
 
 limiter = Limiter(key_func=get_remote_address)
-app = FastAPI()
+app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 templates = Jinja2Templates(directory="templates")
@@ -75,6 +75,9 @@ STATIC_DIR.mkdir(exist_ok=True)
 async def favicon():
     return FileResponse("static/favicon.svg", media_type="image/svg+xml")
 
+@app.get("/og-image.png", include_in_schema=False)
+async def og_image():
+    return FileResponse("static/og-image.svg", media_type="image/svg+xml")
 
 @app.get("/robots.txt", include_in_schema=False)
 async def robots():

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="tr">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,6 +11,11 @@
 <meta name="robots" content="index, follow">
 <link rel="canonical" href="https://videodrop.live/">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="apple-touch-icon" href="/favicon.svg">
+<meta name="theme-color" content="#080808">
+<link rel="alternate" hreflang="tr" href="https://videodrop.live/">
+<link rel="alternate" hreflang="en" href="https://videodrop.live/">
+<link rel="alternate" hreflang="x-default" href="https://videodrop.live/">
 <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3716201858451600" crossorigin="anonymous"></script>
 
 <!-- Open Graph -->
@@ -19,11 +24,16 @@
 <meta property="og:title" content="VideoDrop — Free Instagram, YouTube, Twitter & Facebook Video Downloader">
 <meta property="og:description" content="Download videos for free from Instagram, YouTube, Twitter, and Facebook. Save Reels, Shorts, and stories in MP4, MP3, or silent video. No login required.">
 <meta property="og:site_name" content="VideoDrop">
+<meta property="og:locale" content="tr_TR">
+<meta property="og:image" content="https://videodrop.live/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
 
 <!-- Twitter Card -->
-<meta name="twitter:card" content="summary">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="VideoDrop — Free Video Downloader">
 <meta name="twitter:description" content="Download videos from Instagram, YouTube, Twitter and Facebook. Free, fast, no login required.">
+<meta name="twitter:image" content="https://videodrop.live/og-image.png">
 
 <!-- Structured Data -->
 <script type="application/ld+json">
@@ -43,6 +53,8 @@
 }
 </script>
 
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Suez+One&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -61,6 +73,8 @@
   html { font-size: 18px; background: #080808; }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 
   body {
     font-family: 'DM Sans', sans-serif;
@@ -551,17 +565,18 @@
 
 <div class="bubbles" id="bubbles"></div>
 
-<div class="lang-toggle">
+<nav class="lang-toggle" aria-label="Language selection">
   <button id="btnEN" class="active" onclick="setLang('en')">EN</button>
   <button id="btnTR" onclick="setLang('tr')">TR</button>
-</div>
+</nav>
 
-<div class="container">
-  <div class="brand">
+<main class="container">
+  <header class="brand">
     <div class="brand-mark">
       <h1>videodrop</h1>
+      <h2 class="sr-only" id="subtitleH2">Free Instagram, YouTube, Twitter & Facebook Video Downloader</h2>
     </div>
-  </div>
+  </header>
 
   <div class="input-section">
     <div class="platform-tabs">
@@ -648,7 +663,7 @@
     </div>
   </div>
 
-  <div class="footer">
+  <footer class="footer">
     <p id="footerText" class="lang-el">only public videos are supported</p>
     <p class="footer-platforms">
       <span>Instagram Video Downloader</span>
@@ -665,8 +680,8 @@
       <span>·</span>
       <span>Save Video as MP3</span>
     </p>
-  </div>
-</div>
+  </footer>
+</main>
 
 <script>
   const urlInput    = document.getElementById('urlInput');
