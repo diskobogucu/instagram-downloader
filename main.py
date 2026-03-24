@@ -81,6 +81,11 @@ async def robots():
     return FileResponse("static/robots.txt", media_type="text/plain")
 
 
+@app.get("/ads.txt", include_in_schema=False)
+async def ads_txt():
+    return FileResponse("static/ads.txt", media_type="text/plain")
+
+
 @app.get("/sitemap.xml", include_in_schema=False)
 async def sitemap():
     return FileResponse("static/sitemap.xml", media_type="application/xml")
