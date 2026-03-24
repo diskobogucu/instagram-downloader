@@ -126,6 +126,15 @@ class ConvertRequest(BaseModel):
     format: Literal["video", "mp3", "silent"]
 
 
+def get_real_ip(request: Request) -> str:
+    """Get real client IP, accounting for nginx reverse proxy headers."""
+    return (
+        request.headers.get("x-real-ip") or
+        request.headers.get("x-forwarded-for", "").split(",")[0].strip() or
+        (request.client.host if request.client else "unknown")
+    )
+
+
 async def get_geo(ip: str) -> dict:
     """Return {flag, country} for an IP, cached in geo_cache."""
     if ip in ("127.0.0.1", "::1", "localhost", "unknown"):
@@ -175,7 +184,7 @@ async def traffic_logger(request: Request, call_next):
 
     skip = path in ("/admin/live",) or path.startswith("/progress/")
     if not skip and live_subs:
-        ip = request.client.host if request.client else "unknown"
+        ip = get_real_ip(request)
         geo = await get_geo(ip)
         event = {
             "ts": datetime.utcnow().strftime("%H:%M:%S"),
@@ -363,7 +372,7 @@ async def get_video_info(request: Request, data: InfoRequest):
     title = info.get("title", "video")
     safe_title = "".join(c for c in title if c.isalnum() or c in (" ", "-", "_")).strip() or "video"
 
-    ip = request.client.host if request.client else "unknown"
+    ip = get_real_ip(request)
     log_download(ip, url, "info")
     return {"title": safe_title, "qualities": available}
 
@@ -414,7 +423,7 @@ async def fetch_video(request: Request, data: FetchRequest):
         ydl_opts["cookiefile"] = str(cookies_file)
 
     progress_store[request_id] = {"status": "starting", "pct": 0}
-    ip = request.client.host if request.client else "unknown"
+    ip = get_real_ip(request)
     log_download(ip, url, "started", quality)
     asyncio.create_task(do_download(request_id, file_id, url, ydl_opts))
 

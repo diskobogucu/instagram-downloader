@@ -189,6 +189,7 @@ tbody tr.historical td { opacity: 0.5; }
     <option value="5">5xx</option>
   </select>
   <input class="filter-input" id="fPath" placeholder="/path or keyword" oninput="applyFilters()">
+  <button class="btn" id="dlOnlyBtn" onclick="toggleDlOnly()" style="white-space:nowrap">⬇ Downloads only</button>
   <div class="filter-sep"></div>
   <span class="result-count" id="resultCount"></span>
 </div>
@@ -250,6 +251,7 @@ let paused = false;
 let evtSource = null;
 let selectedRow = null;
 let counts = { total: 0, s2: 0, s4: 0, s5: 0 };
+let dlOnly = false;
 
 let platformChart, hourlyChart, dailyChart;
 
@@ -263,13 +265,24 @@ function switchTab(tab) {
   if (tab === 'stats') loadStats();
 }
 
+// ── Downloads only toggle ────────────────────────────────────
+function toggleDlOnly() {
+  dlOnly = !dlOnly;
+  const btn = document.getElementById('dlOnlyBtn');
+  btn.classList.toggle('active', dlOnly);
+  applyFilters();
+}
+
 // ── Filters ───────────────────────────────────────────────────
+const DL_PATHS = new Set(['/info', '/fetch', '/convert']);
+
 function applyFilters() {
   const fm = document.getElementById('fMethod').value;
   const fs = document.getElementById('fStatus').value;
   const fp = document.getElementById('fPath').value.toLowerCase();
 
   filtered = allRows.filter(r => {
+    if (dlOnly && !DL_PATHS.has(r.path)) return false;
     if (fm && r.method !== fm) return false;
     if (fs && !String(r.status).startsWith(fs)) return false;
     if (fp && !r.path.toLowerCase().includes(fp)) return false;
