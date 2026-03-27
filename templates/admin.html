@@ -6,32 +6,48 @@
 <title>VideoDrop — Traffic Inspector</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
+:root {
+  --bg: #080808;
+  --surface: #0f0f0f;
+  --surface-2: #111;
+  --border: #1a1a1a;
+  --border-hover: #333;
+  --text: #d4d4d4;
+  --text-dim: #888;
+  --text-muted: #555;
+  --green: #22c55e;
+  --yellow: #eab308;
+  --red: #ef4444;
+  --blue: #60a5fa;
+  --purple: #a78bfa;
+  --radius: 8px;
+}
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: 'Segoe UI', system-ui, sans-serif; background: #080808; color: #d4d4d4; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
 
 /* ── Top bar ─────────────────────────────── */
 .topbar {
-  display: flex; align-items: center; gap: 16px;
+  display: flex; align-items: center; gap: 12px;
   padding: 0 20px; height: 52px; flex-shrink: 0;
-  background: #0f0f0f; border-bottom: 1px solid #1a1a1a;
+  background: var(--surface); border-bottom: 1px solid var(--border);
 }
-.topbar-title { font-size: 0.85rem; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 8px; }
-.topbar-title .dot { width: 7px; height: 7px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 6px #22c55e88; transition: background 0.3s, box-shadow 0.3s; }
-.topbar-title .dot.paused { background: #555; box-shadow: none; }
+.topbar-title { font-size: 0.85rem; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.topbar-title .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px rgba(34,197,94,0.5); transition: background 0.3s, box-shadow 0.3s; }
+.topbar-title .dot.paused { background: var(--text-muted); box-shadow: none; }
 .topbar-sep { flex: 1; }
 
 .counters { display: flex; gap: 12px; }
-.cnt { font-size: 0.72rem; color: #999; display: flex; align-items: center; gap: 5px; }
+.cnt { font-size: 0.72rem; color: var(--text-dim); display: flex; align-items: center; gap: 5px; }
 .cnt b { font-weight: 600; }
-.cnt b.green { color: #22c55e; }
-.cnt b.yellow { color: #eab308; }
-.cnt b.red { color: #ef4444; }
+.cnt b.green { color: var(--green); }
+.cnt b.yellow { color: var(--yellow); }
+.cnt b.red { color: var(--red); }
 
-.btn { cursor: pointer; border: 1px solid #222; border-radius: 6px; background: #141414; color: #888; font-size: 0.72rem; padding: 5px 12px; transition: color 0.15s, border-color 0.15s; }
-.btn:hover { color: #e8e8e8; border-color: #333; }
-.btn.active { color: #22c55e; border-color: #22c55e44; }
-.btn-tab { border-radius: 6px; padding: 5px 14px; }
-.btn-tab.sel { background: #1a1a1a; color: #e8e8e8; border-color: #2a2a2a; }
+.btn { cursor: pointer; border: 1px solid #222; border-radius: var(--radius); background: #141414; color: var(--text-dim); font-size: 0.75rem; padding: 8px 14px; min-height: 36px; transition: color 0.15s, border-color 0.15s; white-space: nowrap; }
+.btn:hover { color: var(--text); border-color: var(--border-hover); }
+.btn.active { color: var(--green); border-color: rgba(34,197,94,0.25); }
+.btn-tab { border-radius: var(--radius); padding: 8px 16px; }
+.btn-tab.sel { background: var(--border); color: var(--text); border-color: #2a2a2a; }
 
 /* ── Filter bar ──────────────────────────── */
 .filterbar {
@@ -40,22 +56,22 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #080808; colo
   background: #0c0c0c; border-bottom: 1px solid #151515;
 }
 .filter-select {
-  background: #111; border: 1px solid #1e1e1e; color: #888;
-  font-size: 0.72rem; padding: 4px 10px; border-radius: 6px; cursor: pointer;
-  appearance: none; padding-right: 24px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23555'/%3E%3C/svg%3E");
+  background: var(--surface-2); border: 1px solid #1e1e1e; color: var(--text-dim);
+  font-size: 0.75rem; padding: 7px 28px 7px 10px; border-radius: var(--radius); cursor: pointer;
+  appearance: none; min-height: 36px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right 8px center;
 }
-.filter-select:focus { outline: none; border-color: #333; color: #ccc; }
+.filter-select:focus { outline: 2px solid rgba(165,140,255,0.5); outline-offset: 1px; border-color: var(--border-hover); color: #ccc; }
 .filter-input {
-  background: #111; border: 1px solid #1e1e1e; color: #ccc;
-  font-size: 0.72rem; padding: 4px 10px; border-radius: 6px; width: 200px;
+  background: var(--surface-2); border: 1px solid #1e1e1e; color: #ccc;
+  font-size: 0.75rem; padding: 7px 10px; border-radius: var(--radius); width: 200px; min-height: 36px;
   font-family: monospace;
 }
-.filter-input:focus { outline: none; border-color: #333; }
-.filter-input::placeholder { color: #333; }
+.filter-input:focus { outline: 2px solid rgba(165,140,255,0.5); outline-offset: 1px; border-color: var(--border-hover); }
+.filter-input::placeholder { color: var(--text-muted); }
 .filter-sep { flex: 1; }
-.result-count { font-size: 0.7rem; color: #888; }
+.result-count { font-size: 0.72rem; color: var(--text-dim); }
 
 /* ── Main layout ─────────────────────────── */
 .main { flex: 1; display: flex; overflow: hidden; }
@@ -70,8 +86,8 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #080808; colo
 table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
 thead th {
   position: sticky; top: 0; z-index: 10;
-  background: #0c0c0c; border-bottom: 1px solid #1a1a1a;
-  padding: 8px 14px; text-align: left; color: #666;
+  background: #0c0c0c; border-bottom: 1px solid var(--border);
+  padding: 10px 14px; text-align: left; color: var(--text-dim);
   font-size: 0.68rem; font-weight: 500; letter-spacing: 0.5px; text-transform: uppercase;
   user-select: none;
 }
@@ -81,18 +97,18 @@ tbody tr.new-row { animation: slideIn 0.25s ease; }
 @keyframes slideIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 
 td { padding: 7px 14px; vertical-align: middle; }
-td.ts { color: #888; font-family: monospace; font-size: 0.66rem; white-space: nowrap; width: 180px; }
+td.ts { color: var(--text-dim); font-family: monospace; font-size: 0.68rem; white-space: nowrap; width: 180px; }
 td.ip-cell { white-space: nowrap; color: #aaa; font-size: 0.72rem; }
 td.ip-cell .flag { margin-right: 6px; font-size: 1.1rem; vertical-align: middle; }
-td.path-cell { font-family: monospace; font-size: 0.7rem; color: #999; max-width: 340px; }
+td.path-cell { font-family: monospace; font-size: 0.72rem; color: var(--text-dim); max-width: 340px; }
 td.path-cell .path-main { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-td.path-cell .dl-url { font-size: 0.62rem; color: #555; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
-td.path-cell.highlight .path-main { color: #a78bfa; }
+td.path-cell .dl-url { font-size: 0.65rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
+td.path-cell.highlight .path-main { color: var(--purple); }
 td.path-cell.highlight .dl-url { color: #7c5fbf; }
-td.dur-cell { color: #777; font-size: 0.68rem; white-space: nowrap; text-align: right; width: 70px; }
-td.dur-cell.fast { color: #22c55e; }
-td.dur-cell.slow { color: #eab308; }
-td.dur-cell.very-slow { color: #ef4444; }
+td.dur-cell { color: var(--text-dim); font-size: 0.7rem; white-space: nowrap; text-align: right; width: 70px; }
+td.dur-cell.fast { color: var(--green); }
+td.dur-cell.slow { color: var(--yellow); }
+td.dur-cell.very-slow { color: var(--red); }
 
 .badge {
   display: inline-flex; align-items: center; justify-content: center;
@@ -121,32 +137,105 @@ td.dur-cell.very-slow { color: #ef4444; }
   display: none;
 }
 .detail-panel.open { display: block; }
-.detail-panel h3 { font-size: 0.75rem; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; }
+.detail-panel h3 { font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; }
 .detail-row { margin-bottom: 14px; }
-.detail-row .key { font-size: 0.68rem; color: #777; margin-bottom: 3px; }
+.detail-row .key { font-size: 0.7rem; color: var(--text-muted); margin-bottom: 3px; }
 .detail-row .val { font-size: 0.78rem; color: #aaa; font-family: monospace; word-break: break-all; }
-.detail-close { float: right; cursor: pointer; color: #666; font-size: 1rem; }
-.detail-close:hover { color: #ccc; }
+.detail-close { float: right; cursor: pointer; color: var(--text-muted); font-size: 1.1rem; padding: 4px 8px; border-radius: var(--radius); border: none; background: none; min-width: 36px; min-height: 36px; display: inline-flex; align-items: center; justify-content: center; }
+.detail-close:hover { color: var(--text); background: rgba(255,255,255,0.05); }
 
 /* ── Stats tab ───────────────────────────── */
 .stats-panel { flex: 1; overflow-y: auto; padding: 24px; display: none; }
 .stats-panel.open { display: block; }
 .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 24px; }
-.card { background: #111; border: 1px solid #1a1a1a; border-radius: 10px; padding: 18px; }
-.card .label { font-size: 0.68rem; color: #888; letter-spacing: 0.5px; margin-bottom: 8px; text-transform: uppercase; }
+.card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+.card .label { font-size: 0.7rem; color: var(--text-dim); letter-spacing: 0.5px; margin-bottom: 8px; text-transform: uppercase; }
 .card .value { font-size: 1.8rem; font-weight: 700; color: #fff; }
 .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
-.chart-box { background: #111; border: 1px solid #1a1a1a; border-radius: 10px; padding: 18px; }
-.chart-box h2 { font-size: 0.72rem; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px; }
+.chart-box { background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+.chart-box h2 { font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px; }
 .chart-box canvas { max-height: 200px; }
 @media (max-width: 700px) { .charts { grid-template-columns: 1fr; } }
 
 tbody tr.historical td { opacity: 0.7; }
 
+/* ── Visitors tab ───────────────────────── */
+.visitors-panel { flex: 1; overflow-y: auto; padding: 24px; display: none; }
+.visitors-panel.open { display: block; }
+.visitors-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+.visitors-toolbar .filter-input { width: 240px; }
+.visitors-toolbar .result-count { margin-left: auto; }
+.visitors-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+.visitors-table thead th {
+  position: sticky; top: 0; z-index: 10;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 10px 12px; text-align: left; color: var(--text-dim);
+  font-size: 0.68rem; font-weight: 500; letter-spacing: 0.5px; text-transform: uppercase;
+  user-select: none; cursor: pointer;
+}
+.visitors-table thead th:hover { color: var(--text); }
+.visitors-table thead th .sort-arrow { margin-left: 4px; font-size: 0.6rem; opacity: 0.4; }
+.visitors-table thead th.sorted .sort-arrow { opacity: 1; color: var(--purple); }
+.visitors-table tbody tr { border-bottom: 1px solid #0f0f0f; transition: background 0.1s; }
+.visitors-table tbody tr:hover { background: #0f0f0f; }
+.visitors-table td { padding: 8px 12px; vertical-align: middle; }
+.visitors-table td.vt-ip { font-family: monospace; font-size: 0.72rem; color: #aaa; white-space: nowrap; }
+.visitors-table td.vt-ip .flag { margin-right: 6px; font-size: 1.1rem; vertical-align: middle; }
+.visitors-table td.vt-ref { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-dim); font-size: 0.72rem; }
+.visitors-table td.vt-ref.direct { color: var(--text-muted); font-style: italic; }
+.visitors-table td.vt-device { white-space: nowrap; font-size: 0.72rem; }
+.visitors-table td.vt-device .device-icon { margin-right: 4px; vertical-align: -1px; }
+.visitors-table td.vt-browser { white-space: nowrap; font-size: 0.72rem; color: var(--text-dim); }
+.visitors-table td.vt-visits { text-align: center; font-weight: 600; }
+.visitors-table td.vt-pages { max-width: 180px; font-size: 0.68rem; color: var(--text-dim); font-family: monospace; }
+.visitors-table td.vt-pages span { display: inline-block; background: rgba(255,255,255,0.04); padding: 1px 6px; border-radius: 3px; margin: 1px 2px; }
+.visitors-table td.vt-time { font-family: monospace; font-size: 0.68rem; color: var(--text-dim); white-space: nowrap; }
+.visitors-loading { display: flex; align-items: center; justify-content: center; padding: 60px; color: var(--text-muted); gap: 10px; }
+.visitors-loading svg { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
 /* ── Empty state ─────────────────────────── */
-.empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #555; gap: 8px; pointer-events: none; }
+.empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); gap: 8px; pointer-events: none; }
 .empty svg { opacity: 0.3; }
-.empty p { font-size: 0.8rem; }
+.empty p { font-size: 0.82rem; }
+
+/* ── Focus rings (a11y) ─────────────────── */
+:focus-visible { outline: 2px solid rgba(165,140,255,0.7); outline-offset: 2px; }
+.filter-select:focus-visible, .filter-input:focus-visible { outline-offset: 1px; }
+
+/* ── Reduced motion ─────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+/* ── Touch targets ──────────────────────── */
+button, select, input { touch-action: manipulation; }
+
+/* ── Responsive ─────────────────────────── */
+@media (max-width: 768px) {
+  .topbar { gap: 8px; padding: 0 12px; flex-wrap: wrap; height: auto; min-height: 52px; padding-top: 8px; padding-bottom: 8px; }
+  .counters { gap: 8px; }
+  .topbar-title span { display: none; }
+  .filterbar { flex-wrap: wrap; padding: 8px 12px; }
+  .filter-input { width: 100%; min-width: 0; }
+  .detail-panel { width: 280px; }
+  td.ts { width: 140px; font-size: 0.6rem; }
+  td.path-cell { max-width: 200px; }
+  .cards { grid-template-columns: repeat(2, 1fr); }
+  .chart-box[style*="grid-column"] { grid-column: span 1 !important; }
+  .visitors-panel { padding: 16px 12px; }
+  .visitors-toolbar .filter-input { width: 100%; }
+  .visitors-table td.vt-pages { display: none; }
+  .visitors-table th[data-sort="pages"] { display: none; }
+  .visitors-table td.vt-ref { max-width: 120px; }
+}
+
+@media (max-width: 480px) {
+  .topbar { gap: 6px; }
+  .counters { display: none; }
+  .detail-panel { position: fixed; inset: 0; width: 100%; z-index: 50; border-left: none; }
+  .cards { grid-template-columns: 1fr; }
+}
 </style>
 </head>
 <body>
@@ -169,8 +258,12 @@ tbody tr.historical td { opacity: 0.7; }
 
   <button class="btn btn-tab sel" id="tabLive" onclick="switchTab('live')">Live</button>
   <button class="btn btn-tab" id="tabStats" onclick="switchTab('stats')">Analytics</button>
-  <button class="btn active" id="pauseBtn" onclick="togglePause()">⏸ Pause</button>
-  <button class="btn" onclick="clearLog()">Clear</button>
+  <button class="btn btn-tab" id="tabVisitors" onclick="switchTab('visitors')">Visitors</button>
+  <button class="btn active" id="pauseBtn" onclick="togglePause()" aria-label="Pause live feed">
+    <svg id="pauseIcon" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:-1px"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+    <span id="pauseLabel">Pause</span>
+  </button>
+  <button class="btn" onclick="clearLog()" aria-label="Clear traffic log">Clear</button>
 </div>
 
 <!-- Filter bar (live tab) -->
@@ -188,7 +281,10 @@ tbody tr.historical td { opacity: 0.7; }
     <option value="5">5xx</option>
   </select>
   <input class="filter-input" id="fPath" placeholder="/path or keyword" oninput="applyFilters()">
-  <button class="btn" id="dlOnlyBtn" onclick="toggleDlOnly()" style="white-space:nowrap">⬇ Downloads only</button>
+  <button class="btn" id="dlOnlyBtn" onclick="toggleDlOnly()">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="vertical-align:-1px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    Downloads only
+  </button>
   <div class="filter-sep"></div>
   <span class="result-count" id="resultCount"></span>
 </div>
@@ -221,7 +317,9 @@ tbody tr.historical td { opacity: 0.7; }
 
   <!-- Detail panel -->
   <div class="detail-panel" id="detailPanel">
-    <span class="detail-close" onclick="closeDetail()">✕</span>
+    <button class="detail-close" onclick="closeDetail()" aria-label="Close detail panel">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
     <h3>Request Detail</h3>
     <div id="detailContent"></div>
   </div>
@@ -238,6 +336,43 @@ tbody tr.historical td { opacity: 0.7; }
       <div class="chart-box"><h2>Downloads by Platform</h2><canvas id="platformChart"></canvas></div>
       <div class="chart-box"><h2>Today's Hourly Activity</h2><canvas id="hourlyChart"></canvas></div>
       <div class="chart-box" style="grid-column:span 2"><h2>Daily Download Trend</h2><canvas id="dailyChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Visitors panel -->
+  <div class="visitors-panel" id="panelVisitors">
+    <div class="visitors-toolbar">
+      <input class="filter-input" id="visitorSearch" placeholder="Search IP, country, referrer…" oninput="filterVisitors()">
+      <select class="filter-select" id="visitorDevice" onchange="filterVisitors()">
+        <option value="">All Devices</option>
+        <option>Desktop</option><option>Mobile</option><option>Tablet</option>
+      </select>
+      <select class="filter-select" id="visitorBrowser" onchange="filterVisitors()">
+        <option value="">All Browsers</option>
+        <option>Chrome</option><option>Firefox</option><option>Safari</option><option>Edge</option><option>Other</option>
+      </select>
+      <span class="result-count" id="visitorCount"></span>
+    </div>
+    <div id="visitorsContent">
+      <div class="visitors-loading" id="visitorsLoading">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4m0 12v4m10-10h-4M6 12H2m15.07-7.07-2.83 2.83M9.76 14.24l-2.83 2.83m12.14 0-2.83-2.83M9.76 9.76 6.93 6.93"/></svg>
+        Loading visitors…
+      </div>
+      <table class="visitors-table" id="visitorsTable" style="display:none">
+        <thead>
+          <tr>
+            <th data-sort="country">Location <span class="sort-arrow">▼</span></th>
+            <th data-sort="ip">IP <span class="sort-arrow">▼</span></th>
+            <th data-sort="referrer">Referrer <span class="sort-arrow">▼</span></th>
+            <th data-sort="device">Device <span class="sort-arrow">▼</span></th>
+            <th data-sort="browser">Browser <span class="sort-arrow">▼</span></th>
+            <th data-sort="visits" class="sorted">Visits <span class="sort-arrow">▼</span></th>
+            <th data-sort="pages">Pages <span class="sort-arrow">▼</span></th>
+            <th data-sort="last_seen">Last Seen <span class="sort-arrow">▼</span></th>
+          </tr>
+        </thead>
+        <tbody id="visitorsBody"></tbody>
+      </table>
     </div>
   </div>
 </div>
@@ -287,10 +422,13 @@ function toTurkeyTime(utcStr) {
 function switchTab(tab) {
   document.getElementById('panelLive').style.display = tab === 'live' ? '' : 'none';
   document.getElementById('panelStats').style.display = tab === 'stats' ? '' : 'none';
+  document.getElementById('panelVisitors').style.display = tab === 'visitors' ? '' : 'none';
   document.getElementById('filterBar').style.display = tab === 'live' ? '' : 'none';
   document.getElementById('tabLive').classList.toggle('sel', tab === 'live');
   document.getElementById('tabStats').classList.toggle('sel', tab === 'stats');
+  document.getElementById('tabVisitors').classList.toggle('sel', tab === 'visitors');
   if (tab === 'stats') loadStats();
+  if (tab === 'visitors') loadVisitors();
 }
 
 // ── Downloads only toggle ────────────────────────────────────
@@ -455,12 +593,16 @@ function togglePause() {
   paused = !paused;
   const btn = document.getElementById('pauseBtn');
   const dot = document.getElementById('liveDot');
+  const icon = document.getElementById('pauseIcon');
+  const label = document.getElementById('pauseLabel');
   if (paused) {
-    btn.textContent = '▶ Resume';
+    icon.innerHTML = '<polygon points="6 4 20 12 6 20" />';
+    label.textContent = 'Resume';
     btn.classList.remove('active');
     dot.classList.add('paused');
   } else {
-    btn.textContent = '⏸ Pause';
+    icon.innerHTML = '<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>';
+    label.textContent = 'Pause';
     btn.classList.add('active');
     dot.classList.remove('paused');
     // Rebuild table with current allRows
@@ -537,7 +679,7 @@ async function loadStats() {
   platformChart = new Chart(document.getElementById('platformChart'), {
     type: 'doughnut',
     data: { labels: pLabels, datasets: [{ data: pData, backgroundColor: pColors, borderWidth: 0 }] },
-    options: { plugins: { legend: { labels: { color: '#555', font: { size: 11 } } } }, cutout: '65%' }
+    options: { plugins: { legend: { labels: { color: '#999', font: { size: 11 } } } }, cutout: '65%' }
   });
 
   const hLabels = Object.keys(d.hourly);
@@ -549,8 +691,8 @@ async function loadStats() {
     options: {
       plugins: { legend: { display: false } },
       scales: {
-        x: { ticks: { color: '#333', font: { size: 10 } }, grid: { color: '#111' } },
-        y: { ticks: { color: '#333', font: { size: 10 } }, grid: { color: '#111' } }
+        x: { ticks: { color: '#666', font: { size: 10 } }, grid: { color: '#1a1a1a' } },
+        y: { ticks: { color: '#666', font: { size: 10 } }, grid: { color: '#1a1a1a' } }
       }
     }
   });
@@ -572,12 +714,119 @@ async function loadStats() {
     options: {
       plugins: { legend: { display: false } },
       scales: {
-        x: { ticks: { color: '#333', font: { size: 10 } }, grid: { color: '#111' } },
-        y: { ticks: { color: '#333', font: { size: 10 } }, grid: { color: '#111' } }
+        x: { ticks: { color: '#666', font: { size: 10 } }, grid: { color: '#1a1a1a' } },
+        y: { ticks: { color: '#666', font: { size: 10 } }, grid: { color: '#1a1a1a' } }
       }
     }
   });
 }
+
+// ── Visitors tab ─────────────────────────────────────────────
+let allVisitors = [];
+let filteredVisitors = [];
+let visitorSortKey = 'visits';
+let visitorSortAsc = false;
+
+const DEVICE_ICONS = {
+  Mobile: '<svg class="device-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2" width="10" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18.01"/></svg>',
+  Tablet: '<svg class="device-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18.01"/></svg>',
+  Desktop: '<svg class="device-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>',
+};
+
+async function loadVisitors() {
+  const loading = document.getElementById('visitorsLoading');
+  const table = document.getElementById('visitorsTable');
+  loading.style.display = 'flex';
+  table.style.display = 'none';
+
+  try {
+    const res = await fetch('/admin/visitors');
+    if (!res.ok) throw new Error('Failed');
+    allVisitors = await res.json();
+    filterVisitors();
+    loading.style.display = 'none';
+    table.style.display = '';
+  } catch (e) {
+    loading.innerHTML = '<span style="color:var(--red)">Failed to load visitors</span>';
+  }
+}
+
+function filterVisitors() {
+  const q = (document.getElementById('visitorSearch').value || '').toLowerCase();
+  const dev = document.getElementById('visitorDevice').value;
+  const br = document.getElementById('visitorBrowser').value;
+
+  filteredVisitors = allVisitors.filter(v => {
+    if (dev && v.device !== dev) return false;
+    if (br && v.browser !== br) return false;
+    if (q) {
+      const haystack = `${v.ip} ${v.country||''} ${v.referrer||''} ${v.flag||''}`.toLowerCase();
+      if (!haystack.includes(q)) return false;
+    }
+    return true;
+  });
+
+  sortVisitors();
+  renderVisitors();
+  document.getElementById('visitorCount').textContent =
+    filteredVisitors.length < allVisitors.length
+      ? `${filteredVisitors.length} / ${allVisitors.length}`
+      : `${allVisitors.length} visitors`;
+}
+
+function sortVisitors() {
+  const key = visitorSortKey;
+  filteredVisitors.sort((a, b) => {
+    let va = a[key], vb = b[key];
+    if (key === 'visits') { va = va || 0; vb = vb || 0; }
+    else if (key === 'pages') { va = (a.pages_visited || []).length; vb = (b.pages_visited || []).length; }
+    else { va = (va || '').toString().toLowerCase(); vb = (vb || '').toString().toLowerCase(); }
+    if (va < vb) return visitorSortAsc ? -1 : 1;
+    if (va > vb) return visitorSortAsc ? 1 : -1;
+    return 0;
+  });
+}
+
+function renderVisitors() {
+  const tbody = document.getElementById('visitorsBody');
+  tbody.innerHTML = filteredVisitors.map(v => {
+    const ref = v.referrer || 'Direct';
+    const refClass = v.referrer ? '' : ' direct';
+    const refTitle = v.referrer || '';
+    const pages = (v.pages_visited || []).slice(0, 5).map(p => `<span>${p}</span>`).join('');
+    const morePages = (v.pages_visited || []).length > 5 ? `<span>+${(v.pages_visited||[]).length - 5}</span>` : '';
+    const deviceIcon = DEVICE_ICONS[v.device] || DEVICE_ICONS.Desktop;
+    const lastSeen = toTurkeyTime(v.last_seen || '');
+    return `<tr>
+      <td class="vt-ip"><span class="flag">${v.flag || '🌐'}</span>${v.country || '—'}</td>
+      <td class="vt-ip">${v.ip}</td>
+      <td class="vt-ref${refClass}" title="${refTitle}">${ref === 'Direct' ? 'Direct' : ref.replace(/^https?:\/\/(www\.)?/, '').slice(0, 40)}</td>
+      <td class="vt-device">${deviceIcon} ${v.device || '—'}</td>
+      <td class="vt-browser">${v.browser || '—'}</td>
+      <td class="vt-visits">${v.visits || 1}</td>
+      <td class="vt-pages">${pages}${morePages}</td>
+      <td class="vt-time">${lastSeen}</td>
+    </tr>`;
+  }).join('');
+}
+
+// Sort on header click
+document.addEventListener('click', e => {
+  const th = e.target.closest('.visitors-table thead th[data-sort]');
+  if (!th) return;
+  const key = th.dataset.sort;
+  if (visitorSortKey === key) {
+    visitorSortAsc = !visitorSortAsc;
+  } else {
+    visitorSortKey = key;
+    visitorSortAsc = false;
+  }
+  // Update UI
+  th.closest('thead').querySelectorAll('th').forEach(h => h.classList.remove('sorted'));
+  th.classList.add('sorted');
+  th.querySelector('.sort-arrow').textContent = visitorSortAsc ? '▲' : '▼';
+  filterVisitors();
+});
 
 // ── Load history from disk (persists across server restarts) ──
 async function loadHistory() {

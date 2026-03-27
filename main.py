@@ -93,6 +93,16 @@ async def ads_txt():
 async def sitemap():
     return FileResponse("static/sitemap.xml", media_type="application/xml")
 
+
+@app.get("/privacy", include_in_schema=False)
+async def privacy(request: Request):
+    return templates.TemplateResponse("privacy.html", {"request": request})
+
+
+@app.get("/terms", include_in_schema=False)
+async def terms(request: Request):
+    return templates.TemplateResponse("terms.html", {"request": request})
+
 DOWNLOAD_DIR = Path("downloads")
 DOWNLOAD_DIR.mkdir(exist_ok=True)
 
@@ -128,6 +138,37 @@ async def _cleanup_loop():
 @app.on_event("startup")
 async def _start_cleanup():
     asyncio.create_task(_cleanup_loop())
+
+
+@app.middleware("http")
+async def traffic_broadcast_middleware(request: Request, call_next):
+    """Broadcast every HTTP request to live admin SSE subscribers."""
+    start = time.time()
+    response = await call_next(request)
+    ms = int((time.time() - start) * 1000)
+
+    # Skip SSE/admin-live to avoid infinite loop, and static assets
+    path = request.url.path
+    skip = ("/admin/live", "/progress/", "/favicon", "/robots.txt", "/sitemap.xml", "/ads.txt")
+    if any(path.startswith(s) for s in skip):
+        return response
+
+    # Skip static file extensions
+    if path.rsplit(".", 1)[-1] in ("css", "js", "png", "jpg", "svg", "ico", "woff2", "woff", "ttf"):
+        return response
+
+    ip = get_real_ip(request)
+    geo = await get_geo(ip)
+    method = request.method
+
+    await broadcast_live({
+        "ts": datetime.utcnow().strftime("%H:%M:%S"),
+        "ip": ip, "flag": geo["flag"], "country": geo["country"],
+        "method": method, "path": path, "status": response.status_code,
+        "ms": ms,
+    })
+
+    return response
 
 QUALITY_FORMATS = {
     "auto": "best[ext=mp4]/bestvideo[ext=mp4]+bestaudio/best",
@@ -323,6 +364,7 @@ async def get_video_info(request: Request, data: InfoRequest):
         "quiet": True,
         "no_warnings": True,
         "socket_timeout": 30,
+        "remote_components": ["ejs:github"],
         "http_headers": {
             "User-Agent": (
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -373,13 +415,6 @@ async def get_video_info(request: Request, data: InfoRequest):
 
     ip = get_real_ip(request)
     log_download(ip, url, "info")
-    geo = await get_geo(ip)
-    await broadcast_live({
-        "ts": datetime.utcnow().strftime("%H:%M:%S"),
-        "ip": ip, "flag": geo["flag"], "country": geo["country"],
-        "method": "POST", "path": "/info", "status": 200,
-        "ms": 0, "dl_url": url,
-    })
     return {"title": safe_title, "qualities": available}
 
 
@@ -409,6 +444,7 @@ async def fetch_video(request: Request, data: FetchRequest):
         "no_warnings": True,
         "format": QUALITY_FORMATS[quality],
         "socket_timeout": 60,
+        "remote_components": ["ejs:github"],
         "http_headers": {
             "User-Agent": (
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -431,13 +467,6 @@ async def fetch_video(request: Request, data: FetchRequest):
     progress_store[request_id] = {"status": "starting", "pct": 0, "_ts": time.time()}
     ip = get_real_ip(request)
     log_download(ip, url, "started", quality)
-    geo = await get_geo(ip)
-    await broadcast_live({
-        "ts": datetime.utcnow().strftime("%H:%M:%S"),
-        "ip": ip, "flag": geo["flag"], "country": geo["country"],
-        "method": "POST", "path": "/fetch", "status": 200,
-        "ms": 0, "dl_url": url,
-    })
     asyncio.create_task(do_download(request_id, file_id, url, ydl_opts))
 
     return {"request_id": request_id}
@@ -528,7 +557,7 @@ async def convert_video(data: ConvertRequest):
 
 
 @app.get("/file/{file_id}")
-async def serve_file(file_id: str, filename: str = "video.mp4"):
+async def serve_file(file_id: str, request: Request, filename: str = "video.mp4"):
     if ".." in file_id or "/" in file_id or "\\" in file_id:
         raise HTTPException(status_code=400, detail="Invalid request.")
 
@@ -538,8 +567,44 @@ async def serve_file(file_id: str, filename: str = "video.mp4"):
 
     ext        = matched.suffix.lstrip(".")
     media_type = "audio/mpeg" if ext == "mp3" else "video/mp4"
+    file_size  = matched.stat().st_size
 
-    return FileResponse(path=matched, filename=filename, media_type=media_type)
+    # Support Range requests for video seeking
+    range_header = request.headers.get("range")
+    if range_header:
+        # Parse "bytes=start-end"
+        range_spec = range_header.replace("bytes=", "").strip()
+        parts = range_spec.split("-")
+        start = int(parts[0]) if parts[0] else 0
+        end = int(parts[1]) if parts[1] else file_size - 1
+        end = min(end, file_size - 1)
+        length = end - start + 1
+
+        def iter_file():
+            with open(matched, "rb") as f:
+                f.seek(start)
+                remaining = length
+                while remaining > 0:
+                    chunk = f.read(min(8192, remaining))
+                    if not chunk:
+                        break
+                    remaining -= len(chunk)
+                    yield chunk
+
+        return StreamingResponse(
+            iter_file(),
+            status_code=206,
+            media_type=media_type,
+            headers={
+                "Content-Range": f"bytes {start}-{end}/{file_size}",
+                "Accept-Ranges": "bytes",
+                "Content-Length": str(length),
+                "Content-Disposition": f'inline; filename="{filename}"',
+            },
+        )
+
+    return FileResponse(path=matched, filename=filename, media_type=media_type,
+                        headers={"Accept-Ranges": "bytes"})
 
 
 # ── Admin panel ───────────────────────────────────────
@@ -632,6 +697,113 @@ async def admin_history(_: None = Depends(require_admin)):
     entries = read_download_logs()
     started = [e for e in entries if e.get("status") == "started"]
     return JSONResponse(list(reversed(started))[:200])
+
+
+@app.get("/admin/visitors")
+async def admin_visitors(_: None = Depends(require_admin)):
+    """Parse nginx access.log and return recent unique visitors with details."""
+    import re
+    nginx_log = Path("/var/log/nginx/access.log")
+
+    def _parse():
+        if not nginx_log.exists():
+            return []
+        # nginx combined log format regex
+        pattern = re.compile(
+            r'(?P<ip>[\d.]+) - - \[(?P<date>[^\]]+)\] '
+            r'"(?P<method>\w+) (?P<path>[^ ]+) [^"]*" '
+            r'(?P<status>\d+) \d+ '
+            r'"(?P<referrer>[^"]*)" '
+            r'"(?P<ua>[^"]*)"'
+        )
+        visitors = {}  # ip -> latest visit info
+        try:
+            with open(nginx_log) as f:
+                lines = f.readlines()[-20000:]
+            for line in lines:
+                m = pattern.match(line)
+                if not m:
+                    continue
+                d = m.groupdict()
+                # Only page visits (GET /), skip assets/api
+                if d["method"] != "GET":
+                    continue
+                path = d["path"]
+                if path.startswith(("/file/", "/progress/", "/admin/", "/favicon", "/robots", "/sitemap", "/ads.txt")):
+                    continue
+                ip = d["ip"]
+                ua = d["ua"]
+                if "bot" in ua.lower() or "spider" in ua.lower() or "crawl" in ua.lower():
+                    continue
+                ref = d["referrer"] if d["referrer"] != "-" else ""
+                # Parse date: 27/Mar/2026:14:30:00 +0000
+                raw_date = d["date"].split()[0]  # remove timezone
+                # Detect device type from user-agent
+                ua_lower = ua.lower()
+                if "mobile" in ua_lower or "android" in ua_lower or "iphone" in ua_lower:
+                    device = "Mobile"
+                elif "tablet" in ua_lower or "ipad" in ua_lower:
+                    device = "Tablet"
+                else:
+                    device = "Desktop"
+                # Detect browser
+                if "edg" in ua_lower:
+                    browser = "Edge"
+                elif "chrome" in ua_lower and "safari" in ua_lower:
+                    browser = "Chrome"
+                elif "firefox" in ua_lower:
+                    browser = "Firefox"
+                elif "safari" in ua_lower:
+                    browser = "Safari"
+                else:
+                    browser = "Other"
+                # Update visitor record (keep latest visit)
+                # Convert nginx date "27/Mar/2026:14:30:00" to "2026-03-27 14:30:00"
+                try:
+                    from datetime import datetime as _dt
+                    dt = _dt.strptime(raw_date, "%d/%b/%Y:%H:%M:%S")
+                    iso_date = dt.strftime("%Y-%m-%d %H:%M:%S")
+                except Exception:
+                    iso_date = raw_date
+
+                if ip not in visitors:
+                    visitors[ip] = {
+                        "ip": ip,
+                        "first_seen": iso_date,
+                        "last_seen": iso_date,
+                        "visits": 0,
+                        "pages_visited": set(),
+                        "referrer": ref,
+                        "device": device,
+                        "browser": browser,
+                        "ua": ua[:150],
+                    }
+                v = visitors[ip]
+                v["last_seen"] = iso_date
+                v["visits"] += 1
+                v["pages_visited"].add(path)
+                if ref and not v["referrer"]:
+                    v["referrer"] = ref
+        except Exception:
+            pass
+        # Convert sets to lists, sort by last_seen desc
+        result = []
+        for v in visitors.values():
+            v["pages_visited"] = list(v["pages_visited"])
+            result.append(v)
+        result.sort(key=lambda x: x["last_seen"], reverse=True)
+        return result[:500]
+
+    loop = asyncio.get_event_loop()
+    data = await loop.run_in_executor(None, _parse)
+
+    # Enrich with geo data
+    for v in data[:100]:  # limit geo lookups
+        geo = await get_geo(v["ip"])
+        v["flag"] = geo["flag"]
+        v["country"] = geo["country"]
+
+    return JSONResponse(data)
 
 
 @app.get("/admin/live")
