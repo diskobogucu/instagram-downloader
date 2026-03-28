@@ -371,17 +371,8 @@
     box-shadow: 0 0 0 3px rgba(129,140,248,0.06);
   }
 
-  .input-prompt {
-    padding-left: 16px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.82rem;
-    color: var(--accent);
-    user-select: none;
-    flex-shrink: 0;
-    opacity: 0.7;
-  }
-
   .input-wrapper input {
+    padding-left: 16px;
     flex: 1;
     background: none;
     border: none;
@@ -1038,7 +1029,6 @@
     </div>
     <div class="input-wrapper">
       <label for="urlInput" class="sr-only">Video URL</label>
-      <span class="input-prompt">$</span>
       <input type="text" id="urlInput" placeholder="instagram.com/reel/..." autocomplete="off" spellcheck="false" />
       <button class="snippet-action" id="pasteBtn" onclick="handlePasteBtn()" title="Paste from clipboard" aria-label="Paste from clipboard">
         <span class="icon-default">
