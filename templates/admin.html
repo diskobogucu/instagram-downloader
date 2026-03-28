@@ -3,1076 +3,589 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VideoDrop — Traffic Inspector</title>
+<title>VideoDrop — Logs</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
-:root {
-  --bg: #09090b;
-  --card: #0f0f12;
-  --border: rgba(255,255,255,0.06);
-  --border-hover: rgba(255,255,255,0.12);
-  --text: #fafafa;
-  --text-dim: #a1a1aa;
-  --text-muted: #52525b;
-  --muted-bg: rgba(255,255,255,0.04);
-  --green: #22c55e;
-  --green-bg: rgba(34,197,94,0.1);
-  --yellow: #eab308;
-  --yellow-bg: rgba(234,179,8,0.1);
-  --red: #ef4444;
-  --red-bg: rgba(239,68,68,0.1);
-  --blue: #3b82f6;
-  --blue-bg: rgba(59,130,246,0.1);
-  --purple: #a78bfa;
-  --purple-bg: rgba(167,139,250,0.1);
-  --primary: #818cf8;
-  --primary-bg: rgba(129,140,248,0.1);
-  --radius: 8px;
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#09090b;--card:#0c0c0f;--card-hover:rgba(255,255,255,0.02);
+  --border:rgba(255,255,255,0.06);--border-hover:rgba(255,255,255,0.12);
+  --fg:#fafafa;--fg-muted:#71717a;--fg-dim:#a1a1aa;
+  --muted-bg:rgba(255,255,255,0.04);
+  --blue:#3b82f6;--blue-bg:rgba(59,130,246,0.1);
+  --green:#22c55e;--green-bg:rgba(34,197,94,0.1);
+  --yellow:#eab308;--yellow-bg:rgba(234,179,8,0.1);
+  --red:#ef4444;--red-bg:rgba(239,68,68,0.1);
+  --purple:#a78bfa;--purple-bg:rgba(167,139,250,0.1);
+  --primary:#818cf8;--primary-bg:rgba(129,140,248,0.1);
+  --radius:6px;
 }
-
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background: var(--bg);
-  color: var(--text);
-  height: 100vh; height: 100dvh;
-  display: flex; flex-direction: column;
-  overflow: hidden;
-}
-
-/* ── Header ──────────────────────────────── */
-.header {
-  padding: 20px 24px 16px;
-  background: var(--card);
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-}
-
-.header-top {
-  display: flex; align-items: center; gap: 16px;
-  margin-bottom: 16px;
-}
-
-.header-title {
-  font-size: 1.25rem; font-weight: 600; color: var(--text);
-  display: flex; align-items: center; gap: 10px;
-}
-
-.live-dot {
-  width: 8px; height: 8px; border-radius: 50%;
-  background: var(--green);
-  box-shadow: 0 0 8px rgba(34,197,94,0.5);
-  animation: pulse 2s ease-in-out infinite;
-  transition: all 0.3s;
-}
-
-.live-dot.paused { background: var(--text-muted); box-shadow: none; animation: none; }
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
-.header-subtitle {
-  font-size: 0.8rem; color: var(--text-muted); font-weight: 400;
-}
-
-.header-sep { flex: 1; }
-
-/* ── Counters (inline badges) ──────────── */
-.header-counters {
-  display: flex; gap: 8px; align-items: center;
-}
-
-.counter-badge {
-  font-size: 0.7rem; font-family: 'JetBrains Mono', monospace;
-  padding: 4px 10px; border-radius: 999px;
-  display: flex; align-items: center; gap: 4px;
-  font-weight: 500;
-}
-
-.counter-badge.total { background: var(--muted-bg); color: var(--text-dim); }
-.counter-badge.ok    { background: var(--green-bg); color: var(--green); }
-.counter-badge.warn  { background: var(--yellow-bg); color: var(--yellow); }
-.counter-badge.err   { background: var(--red-bg); color: var(--red); }
-
-/* ── Header controls ─────────────────────── */
-.header-controls {
-  display: flex; align-items: center; gap: 8px;
-}
-
-.search-wrap {
-  position: relative; flex: 1; max-width: 300px;
-}
-
-.search-wrap svg {
-  position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
-  color: var(--text-muted); pointer-events: none;
-}
-
-.search-input {
-  width: 100%;
-  background: var(--muted-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  color: var(--text);
-  font-family: 'Inter', sans-serif;
-  font-size: 0.8rem;
-  padding: 8px 12px 8px 34px;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.search-input:focus {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 2px rgba(129,140,248,0.15);
-}
-
-.search-input::placeholder { color: var(--text-muted); }
-
-/* ── Tab pills ───────────────────────────── */
-.tab-group {
-  display: flex;
-  background: var(--muted-bg);
-  border-radius: var(--radius);
-  padding: 3px;
-  gap: 2px;
-}
-
-.tab-pill {
-  font-family: 'Inter', sans-serif;
-  font-size: 0.78rem; font-weight: 500;
-  padding: 6px 14px;
-  border: none; border-radius: 6px;
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: all 0.15s;
-  white-space: nowrap;
-}
-
-.tab-pill:hover { color: var(--text-dim); }
-.tab-pill.sel { background: var(--bg); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
-
-/* ── Action buttons ──────────────────────── */
-.btn-action {
-  font-family: 'Inter', sans-serif;
-  font-size: 0.78rem; font-weight: 500;
-  padding: 7px 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: transparent;
-  color: var(--text-dim);
-  cursor: pointer;
-  display: flex; align-items: center; gap: 6px;
-  transition: all 0.15s;
-  white-space: nowrap;
-}
-
-.btn-action:hover { border-color: var(--border-hover); color: var(--text); }
-.btn-action.active { border-color: rgba(34,197,94,0.3); color: var(--green); }
-
-.btn-action svg { flex-shrink: 0; }
-
-.filter-select {
-  background: var(--muted-bg);
-  border: 1px solid var(--border);
-  color: var(--text-dim);
-  font-family: 'Inter', sans-serif;
-  font-size: 0.78rem;
-  padding: 7px 28px 7px 10px;
-  border-radius: var(--radius);
-  cursor: pointer;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23666'/%3E%3C/svg%3E");
-  background-repeat: no-repeat; background-position: right 8px center;
-  transition: border-color 0.2s;
-}
-
-.filter-select:focus { outline: none; border-color: var(--primary); }
-
-.result-count {
-  font-size: 0.72rem; color: var(--text-muted);
-  font-family: 'JetBrains Mono', monospace;
-  white-space: nowrap;
-}
-
-/* ── Main layout ─────────────────────────── */
-.main { flex: 1; display: flex; overflow: hidden; }
-
-/* ── Log list (replaces table) ───────────── */
-.logs-panel { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
-.logs-scroll { flex: 1; overflow-y: auto; }
-.logs-scroll::-webkit-scrollbar { width: 4px; }
-.logs-scroll::-webkit-scrollbar-track { background: transparent; }
-.logs-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
-
-/* ── Log row ─────────────────────────────── */
-.log-row {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 24px;
-  border-bottom: 1px solid var(--border);
-  cursor: pointer;
-  transition: background 0.1s;
-  font-size: 0.82rem;
-}
-
-.log-row:hover { background: var(--muted-bg); }
-.log-row.selected { background: rgba(129,140,248,0.06); }
-.log-row.new-row { animation: rowSlide 0.3s ease-out; }
-
-@keyframes rowSlide {
-  from { opacity: 0; transform: translateY(-8px); }
-  to   { opacity: 1; transform: none; }
-}
-
-.log-row .chevron {
-  flex-shrink: 0; width: 16px; height: 16px;
-  color: var(--text-muted);
-  transition: transform 0.2s;
-}
-
-.log-row.expanded .chevron { transform: rotate(180deg); }
-
-/* ── Method badge ────────────────────────── */
-.method-badge {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.68rem; font-weight: 600;
-  padding: 2px 8px; border-radius: 4px;
-  flex-shrink: 0; text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-.m-GET    { background: var(--blue-bg);   color: var(--blue); }
-.m-POST   { background: var(--green-bg);  color: var(--green); }
-.m-DELETE  { background: var(--red-bg);    color: var(--red); }
-.m-PUT    { background: var(--yellow-bg); color: var(--yellow); }
-.m-PATCH  { background: var(--purple-bg); color: var(--purple); }
-.m-HEAD   { background: var(--muted-bg);  color: var(--text-muted); }
-.m-OTHER  { background: var(--muted-bg);  color: var(--text-muted); }
-
-/* ── Status code ─────────────────────────── */
-.status-code {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.78rem; font-weight: 600;
-  flex-shrink: 0; min-width: 32px;
-}
-
-.s-2xx { color: #4ade80; }
-.s-3xx { color: var(--blue); }
-.s-4xx { color: var(--yellow); }
-.s-5xx { color: var(--red); }
-.s-unk { color: var(--text-muted); }
-
-/* ── Row fields ──────────────────────────── */
-.log-ts {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.72rem; color: var(--text-muted);
-  flex-shrink: 0; width: 150px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-
-.log-ip {
-  font-size: 0.78rem; color: var(--text-dim);
-  flex-shrink: 0; white-space: nowrap;
-  display: flex; align-items: center; gap: 4px;
-}
-
-.log-ip .flag { font-size: 1rem; }
-
-.log-path {
-  flex: 1; min-width: 0;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.78rem; color: var(--text-dim);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-
-.log-path.highlight { color: var(--primary); }
-
-.log-dur {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.72rem; color: var(--text-muted);
-  flex-shrink: 0; width: 56px; text-align: right;
-}
-
-.log-dur.fast { color: var(--green); }
-.log-dur.slow { color: var(--yellow); }
-.log-dur.very-slow { color: var(--red); }
-
-/* ── Expanded detail ─────────────────────── */
-.log-detail {
-  background: var(--muted-bg);
-  border-bottom: 1px solid var(--border);
-  padding: 16px 24px 16px 50px;
-  display: none;
-  animation: detailOpen 0.2s ease-out;
-}
-
-.log-detail.open { display: block; }
-
-@keyframes detailOpen {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-
-.detail-grid {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px; margin-bottom: 12px;
-}
-
-.detail-field {}
-
-.detail-label {
-  font-size: 0.65rem; font-weight: 600;
-  text-transform: uppercase; letter-spacing: 0.08em;
-  color: var(--text-muted); margin-bottom: 3px;
-}
-
-.detail-value {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.78rem; color: var(--text-dim);
-  word-break: break-all;
-}
-
-.detail-tags {
-  display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;
-}
-
-.detail-tag {
-  font-size: 0.68rem; padding: 3px 10px;
-  border: 1px solid var(--border);
-  border-radius: 999px; color: var(--text-dim);
-}
-
-/* ── Empty state ─────────────────────────── */
-.empty-state {
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  height: 100%; color: var(--text-muted); gap: 12px;
-}
-
-.empty-state svg { opacity: 0.2; }
-.empty-state p { font-size: 0.85rem; }
-
-/* ── Stats panel ─────────────────────────── */
-.stats-panel { flex: 1; overflow-y: auto; padding: 24px; display: none; }
-.stats-panel.open { display: block; }
-
-.cards {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 12px; margin-bottom: 24px;
-}
-
-.card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 12px; padding: 20px;
-  transition: border-color 0.2s;
-}
-
-.card:hover { border-color: var(--border-hover); }
-
-.card .label {
-  font-size: 0.68rem; color: var(--text-muted);
-  letter-spacing: 0.06em; margin-bottom: 8px;
-  text-transform: uppercase; font-weight: 600;
-}
-
-.card .value { font-size: 1.8rem; font-weight: 700; color: var(--text); }
-
-.charts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
-
-.chart-box {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 12px; padding: 20px;
-}
-
-.chart-box h2 {
-  font-size: 0.68rem; color: var(--text-muted);
-  text-transform: uppercase; letter-spacing: 0.06em;
-  font-weight: 600; margin-bottom: 14px;
-}
-
-.chart-box canvas { max-height: 200px; }
-
-/* ── Visitors panel ──────────────────────── */
-.visitors-panel { flex: 1; overflow-y: auto; padding: 24px; display: none; }
-.visitors-panel.open { display: block; }
-
-.visitors-toolbar {
-  display: flex; align-items: center; gap: 10px;
-  margin-bottom: 16px; flex-wrap: wrap;
-}
-
-.visitors-toolbar .search-wrap { max-width: 260px; }
-
-.visitors-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
-
-.visitors-table thead th {
-  position: sticky; top: 0; z-index: 10;
-  background: var(--card);
-  border-bottom: 1px solid var(--border);
-  padding: 10px 12px; text-align: left;
-  font-size: 0.65rem; font-weight: 600;
-  letter-spacing: 0.06em; text-transform: uppercase;
-  color: var(--text-muted); cursor: pointer;
-  transition: color 0.15s;
-}
-
-.visitors-table thead th:hover { color: var(--text-dim); }
-.visitors-table thead th .sort-arrow { margin-left: 4px; font-size: 0.6rem; opacity: 0.4; }
-.visitors-table thead th.sorted .sort-arrow { opacity: 1; color: var(--primary); }
-
-.visitors-table tbody tr {
-  border-bottom: 1px solid var(--border);
-  transition: background 0.1s;
-}
-
-.visitors-table tbody tr:hover { background: var(--muted-bg); }
-.visitors-table td { padding: 10px 12px; vertical-align: middle; }
-.visitors-table td.vt-ip { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--text-dim); white-space: nowrap; }
-.visitors-table td.vt-ip .flag { margin-right: 6px; font-size: 1rem; }
-.visitors-table td.vt-ref { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-dim); }
-.visitors-table td.vt-ref.direct { color: var(--text-muted); font-style: italic; }
-.visitors-table td.vt-device { white-space: nowrap; }
-.visitors-table td.vt-device .device-icon { margin-right: 4px; vertical-align: -1px; }
-.visitors-table td.vt-browser { white-space: nowrap; color: var(--text-dim); }
-.visitors-table td.vt-visits { text-align: center; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
-.visitors-table td.vt-pages { max-width: 180px; font-size: 0.68rem; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; }
-.visitors-table td.vt-pages span { display: inline-block; background: var(--muted-bg); padding: 2px 6px; border-radius: 4px; margin: 1px 2px; }
-.visitors-table td.vt-time { font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: var(--text-muted); white-space: nowrap; }
-
-.visitors-loading {
-  display: flex; align-items: center; justify-content: center;
-  padding: 60px; color: var(--text-muted); gap: 10px;
-}
-
-.visitors-loading svg { animation: spin 1s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
-
-/* ── Responsive ──────────────────────────── */
-@media (max-width: 768px) {
-  .header { padding: 16px; }
-  .header-top { flex-wrap: wrap; }
-  .header-controls { flex-wrap: wrap; }
-  .header-counters { display: none; }
-  .search-wrap { max-width: 100%; }
-  .log-row { padding: 10px 16px; gap: 8px; }
-  .log-ts { width: auto; }
-  .log-ip { display: none; }
-  .charts { grid-template-columns: 1fr; }
-  .chart-box[style*="grid-column"] { grid-column: span 1 !important; }
-  .visitors-table td.vt-pages { display: none; }
-  .visitors-table th[data-sort="pages"] { display: none; }
-}
-
-@media (max-width: 480px) {
-  .log-ts { display: none; }
-  .log-dur { display: none; }
-  .tab-group { width: 100%; }
-  .cards { grid-template-columns: 1fr; }
-}
-
-/* ── A11y ────────────────────────────────── */
-:focus-visible { outline: 2px solid rgba(129,140,248,0.6); outline-offset: 2px; }
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
-}
-button, select, input { touch-action: manipulation; }
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--fg);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+/* ── Tabs ── */
+.tabs{display:flex;border-bottom:1px solid var(--border);background:var(--card)}
+.tab{padding:12px 24px;font-size:.875rem;font-weight:500;color:var(--fg-muted);cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;transition:all .15s}
+.tab:hover{color:var(--fg-dim)}
+.tab.active{color:var(--fg);border-bottom-color:var(--primary)}
+.tab-panel{display:none;flex:1;overflow:hidden;flex-direction:column}
+.tab-panel.active{display:flex}
+
+/* ── Header ── */
+.panel-header{padding:20px 24px;border-bottom:1px solid var(--border);background:var(--card)}
+.panel-header h1{font-size:1.25rem;font-weight:600;margin-bottom:2px}
+.panel-header .subtitle{font-size:.8rem;color:var(--fg-muted)}
+.header-controls{display:flex;gap:8px;margin-top:12px}
+.search-box{position:relative;flex:1}
+.search-box svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--fg-muted);pointer-events:none}
+.search-box input{width:100%;height:36px;padding:0 12px 0 34px;font-size:.8rem;background:var(--muted-bg);border:1px solid var(--border);border-radius:var(--radius);color:var(--fg);outline:none;font-family:inherit}
+.search-box input::placeholder{color:var(--fg-muted)}
+.search-box input:focus{border-color:var(--primary);box-shadow:0 0 0 2px var(--primary-bg)}
+.btn-filter{display:flex;align-items:center;gap:6px;height:36px;padding:0 14px;font-size:.8rem;font-weight:500;border:1px solid var(--border);border-radius:var(--radius);background:var(--muted-bg);color:var(--fg-dim);cursor:pointer;position:relative;transition:all .15s}
+.btn-filter:hover{border-color:var(--border-hover);color:var(--fg)}
+.btn-filter.active{background:var(--primary);border-color:var(--primary);color:#fff}
+.btn-filter svg{width:16px;height:16px}
+.filter-count{position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:var(--red);color:#fff;font-size:.65rem;font-weight:700;display:flex;align-items:center;justify-content:center}
+
+/* ── Content area with sidebar ── */
+.content-area{flex:1;display:flex;overflow:hidden}
+
+/* ── Filter Sidebar ── */
+.filter-sidebar{width:0;overflow:hidden;border-right:1px solid var(--border);background:var(--card);transition:width .2s ease}
+.filter-sidebar.open{width:260px}
+.filter-sidebar-inner{width:260px;padding:16px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;height:100%}
+.filter-group-title{font-size:.65rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--fg-muted);margin-bottom:8px}
+.filter-btn{display:flex;align-items:center;justify-content:space-between;width:100%;padding:8px 12px;font-size:.8rem;border:1px solid var(--border);border-radius:var(--radius);background:transparent;color:var(--fg-muted);cursor:pointer;transition:all .15s;margin-bottom:6px;font-family:inherit}
+.filter-btn:hover{border-color:rgba(129,140,248,0.4);background:var(--muted-bg);transform:translateX(2px)}
+.filter-btn.selected{border-color:var(--primary);background:var(--primary-bg);color:var(--primary)}
+.filter-btn .check{display:none;width:14px;height:14px}
+.filter-btn.selected .check{display:block}
+.filter-clear{font-size:.75rem;color:var(--fg-muted);background:none;border:none;cursor:pointer;padding:4px 8px;border-radius:4px}
+.filter-clear:hover{color:var(--fg);background:var(--muted-bg)}
+.filter-header{display:flex;align-items:center;justify-content:space-between}
+.filter-header h3{font-size:.85rem;font-weight:600}
+
+/* ── Log rows ── */
+.log-list{flex:1;overflow-y:auto;overflow-x:hidden}
+.log-list::-webkit-scrollbar{width:6px}
+.log-list::-webkit-scrollbar-track{background:transparent}
+.log-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.log-row{display:flex;align-items:center;gap:12px;padding:12px 24px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s}
+.log-row:hover{background:var(--card-hover)}
+.log-row .chevron{flex-shrink:0;width:16px;height:16px;color:var(--fg-muted);transition:transform .2s}
+.log-row.expanded .chevron{transform:rotate(180deg)}
+
+/* Badge */
+.badge{display:inline-flex;padding:2px 8px;border-radius:99px;font-size:.7rem;font-weight:500;text-transform:capitalize;flex-shrink:0}
+.badge-info{background:var(--blue-bg);color:var(--blue)}
+.badge-success{background:var(--green-bg);color:var(--green)}
+.badge-warning{background:var(--yellow-bg);color:var(--yellow)}
+.badge-error{background:var(--red-bg);color:var(--red)}
+.badge-outline{background:transparent;border:1px solid var(--border);color:var(--fg-dim);font-size:.65rem}
+
+/* Row cells */
+.cell-time{width:64px;flex-shrink:0;font-family:'JetBrains Mono',monospace;font-size:.75rem;color:var(--fg-muted)}
+.cell-method{flex-shrink:0;font-size:.8rem;font-weight:500;min-width:40px}
+.cell-path{flex:1;font-size:.8rem;color:var(--fg-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cell-status{flex-shrink:0;font-family:'JetBrains Mono',monospace;font-size:.8rem;font-weight:600}
+.cell-status.s2{color:var(--green)}.cell-status.s3{color:var(--blue)}.cell-status.s4{color:var(--yellow)}.cell-status.s5{color:var(--red)}
+.cell-ms{width:56px;flex-shrink:0;text-align:right;font-family:'JetBrains Mono',monospace;font-size:.75rem;color:var(--fg-muted)}
+.cell-ip{flex-shrink:0;font-size:.75rem;color:var(--fg-muted);font-family:'JetBrains Mono',monospace}
+.cell-country{flex-shrink:0;font-size:.75rem;color:var(--fg-dim);min-width:48px}
+
+/* Expanded detail */
+.log-detail{display:none;border-bottom:1px solid var(--border);background:var(--muted-bg);padding:16px 24px 16px 52px;animation:slideDown .2s ease}
+.log-detail.open{display:block}
+@keyframes slideDown{from{opacity:0;max-height:0}to{opacity:1;max-height:300px}}
+.detail-section{margin-bottom:12px}
+.detail-label{font-size:.65rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--fg-muted);margin-bottom:4px}
+.detail-value{font-family:'JetBrains Mono',monospace;font-size:.8rem;background:var(--bg);padding:8px 12px;border-radius:var(--radius);color:var(--fg)}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.detail-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+
+/* ── Visitors tab ── */
+.visitor-row{display:flex;align-items:center;gap:12px;padding:12px 24px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s}
+.visitor-row:hover{background:var(--card-hover)}
+.visitor-row .chevron{flex-shrink:0;width:16px;height:16px;color:var(--fg-muted);transition:transform .2s}
+.visitor-row.expanded .chevron{transform:rotate(180deg)}
+.v-ip{flex-shrink:0;font-family:'JetBrains Mono',monospace;font-size:.8rem;color:var(--fg-dim);min-width:110px}
+.v-country{flex-shrink:0;font-size:.8rem;color:var(--fg-dim);min-width:80px}
+.v-device{flex-shrink:0;font-size:.8rem;color:var(--fg-muted)}
+.v-browser{flex-shrink:0;font-size:.8rem;color:var(--fg-muted);min-width:60px}
+.v-visits{flex-shrink:0;font-family:'JetBrains Mono',monospace;font-size:.8rem;font-weight:600;color:var(--primary);min-width:30px;text-align:center}
+.v-ref{flex:1;font-size:.8rem;color:var(--fg-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.v-ref.direct{color:var(--fg-muted);font-style:italic}
+.v-time{flex-shrink:0;font-family:'JetBrains Mono',monospace;font-size:.75rem;color:var(--fg-muted)}
+
+.visitor-detail{display:none;border-bottom:1px solid var(--border);background:var(--muted-bg);padding:16px 24px 16px 52px;animation:slideDown .2s ease}
+.visitor-detail.open{display:block}
+
+/* ── Stats counters ── */
+.stats-bar{display:flex;gap:16px;padding:12px 24px;border-bottom:1px solid var(--border);background:var(--card);flex-wrap:wrap}
+.stat-chip{display:flex;align-items:center;gap:6px;font-size:.8rem;color:var(--fg-dim)}
+.stat-chip .num{font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--fg)}
+
+/* ── Empty state ── */
+.empty-state{display:flex;align-items:center;justify-content:center;height:200px;color:var(--fg-muted);font-size:.9rem}
+
+/* ── Connection dot ── */
+.conn-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.conn-dot.live{background:var(--green);box-shadow:0 0 6px var(--green)}
+.conn-dot.off{background:var(--red)}
 </style>
 </head>
 <body>
 
-<!-- ── Header ────────────────────────────── -->
-<div class="header">
-  <div class="header-top">
-    <div class="header-title">
-      <div class="live-dot" id="liveDot"></div>
-      Logs
-    </div>
-    <span class="header-subtitle" id="logSubtitle">Waiting for traffic…</span>
-    <div class="header-sep"></div>
+<!-- ── Tabs ── -->
+<div class="tabs">
+  <button class="tab active" data-tab="logs">Logs</button>
+  <button class="tab" data-tab="visitors">Visitors</button>
+</div>
 
-    <div class="header-counters">
-      <span class="counter-badge total" id="cntTotal">0</span>
-      <span class="counter-badge ok" id="cnt2xx">0 ok</span>
-      <span class="counter-badge warn" id="cnt4xx">0 warn</span>
-      <span class="counter-badge err" id="cnt5xx">0 err</span>
+<!-- ══════════ LOGS TAB ══════════ -->
+<div class="tab-panel active" id="tab-logs">
+  <div class="panel-header">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="conn-dot live" id="connDot"></div>
+      <div>
+        <h1>Logs</h1>
+        <p class="subtitle"><span id="logCount">0</span> of <span id="logTotal">0</span> logs</p>
+      </div>
+    </div>
+    <div class="header-controls">
+      <div class="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" id="logSearch" placeholder="Search logs by path, IP, or country...">
+      </div>
+      <button class="btn-filter" id="filterToggle" onclick="toggleFilters()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+        <span id="filterCountBadge" class="filter-count" style="display:none">0</span>
+      </button>
     </div>
   </div>
 
-  <div class="header-controls">
-    <div class="tab-group">
-      <button class="tab-pill sel" id="tabLive" onclick="switchTab('live')">Live</button>
-      <button class="tab-pill" id="tabStats" onclick="switchTab('stats')">Analytics</button>
-      <button class="tab-pill" id="tabVisitors" onclick="switchTab('visitors')">Visitors</button>
+  <div class="stats-bar" id="statsBar">
+    <div class="stat-chip">Total <span class="num" id="cntTotal">0</span></div>
+    <div class="stat-chip" style="color:var(--green)">2xx <span class="num" id="cnt2">0</span></div>
+    <div class="stat-chip" style="color:var(--blue)">3xx <span class="num" id="cnt3">0</span></div>
+    <div class="stat-chip" style="color:var(--yellow)">4xx <span class="num" id="cnt4">0</span></div>
+    <div class="stat-chip" style="color:var(--red)">5xx <span class="num" id="cnt5">0</span></div>
+  </div>
+
+  <div class="content-area">
+    <div class="filter-sidebar" id="filterSidebar">
+      <div class="filter-sidebar-inner">
+        <div class="filter-header">
+          <h3>Filters</h3>
+          <button class="filter-clear" onclick="clearAllFilters()">Clear</button>
+        </div>
+
+        <div>
+          <div class="filter-group-title">Method</div>
+          <div id="filterMethods"></div>
+        </div>
+        <div>
+          <div class="filter-group-title">Status</div>
+          <div id="filterStatuses"></div>
+        </div>
+        <div>
+          <div class="filter-group-title">Country</div>
+          <div id="filterCountries"></div>
+        </div>
+      </div>
     </div>
-
-    <div class="search-wrap" id="filterBar">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input class="search-input" id="fPath" placeholder="Search path…" oninput="applyFilters()">
-    </div>
-
-    <select class="filter-select" id="fMethod" onchange="applyFilters()">
-      <option value="">All Methods</option>
-      <option>GET</option><option>POST</option><option>PUT</option>
-      <option>DELETE</option><option>PATCH</option><option>HEAD</option>
-    </select>
-
-    <select class="filter-select" id="fStatus" onchange="applyFilters()">
-      <option value="">All Status</option>
-      <option value="2">2xx</option><option value="3">3xx</option>
-      <option value="4">4xx</option><option value="5">5xx</option>
-    </select>
-
-    <button class="btn-action" id="dlOnlyBtn" onclick="toggleDlOnly()">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      Downloads
-    </button>
-
-    <div class="header-sep"></div>
-    <span class="result-count" id="resultCount"></span>
-
-    <button class="btn-action active" id="pauseBtn" onclick="togglePause()" aria-label="Pause">
-      <svg id="pauseIcon" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
-      <span id="pauseLabel">Pause</span>
-    </button>
-
-    <button class="btn-action" onclick="clearLog()">Clear</button>
+    <div class="log-list" id="logList"></div>
   </div>
 </div>
 
-<!-- ── Main ──────────────────────────────── -->
-<div class="main">
-
-  <!-- Live logs panel -->
-  <div class="logs-panel" id="panelLive">
-    <div class="logs-scroll" id="logsScroll">
-      <div class="empty-state" id="emptyState">
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2z"/><path d="M12 6v6l4 2"/></svg>
-        <p>Waiting for traffic…</p>
+<!-- ══════════ VISITORS TAB ══════════ -->
+<div class="tab-panel" id="tab-visitors">
+  <div class="panel-header">
+    <h1>Visitors</h1>
+    <p class="subtitle">Real visitors from nginx access log</p>
+    <div class="header-controls">
+      <div class="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" id="visitorSearch" placeholder="Search by IP, country, or referrer...">
       </div>
-      <div id="logsList" style="display:none"></div>
     </div>
   </div>
-
-  <!-- Stats panel -->
-  <div class="stats-panel" id="panelStats">
-    <div class="cards">
-      <div class="card"><div class="label">Today's Visitors</div><div class="value" id="visitorsToday">—</div></div>
-      <div class="card"><div class="label">Total Visitors</div><div class="value" id="totalVisitors">—</div></div>
-      <div class="card"><div class="label">Total Downloads</div><div class="value" id="totalDownloads">—</div></div>
-      <div class="card"><div class="label">Top Platform</div><div class="value" id="topPlatform">—</div></div>
-    </div>
-    <div class="charts">
-      <div class="chart-box"><h2>Downloads by Platform</h2><canvas id="platformChart"></canvas></div>
-      <div class="chart-box"><h2>Today's Hourly Activity</h2><canvas id="hourlyChart"></canvas></div>
-      <div class="chart-box" style="grid-column:span 2"><h2>Daily Download Trend</h2><canvas id="dailyChart"></canvas></div>
-    </div>
+  <div class="stats-bar">
+    <div class="stat-chip">Total visitors <span class="num" id="visitorTotal">0</span></div>
   </div>
-
-  <!-- Visitors panel -->
-  <div class="visitors-panel" id="panelVisitors">
-    <div class="visitors-toolbar">
-      <div class="search-wrap">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input class="search-input" id="visitorSearch" placeholder="Search IP, country, referrer…" oninput="filterVisitors()">
-      </div>
-      <select class="filter-select" id="visitorDevice" onchange="filterVisitors()">
-        <option value="">All Devices</option>
-        <option>Desktop</option><option>Mobile</option><option>Tablet</option>
-      </select>
-      <select class="filter-select" id="visitorBrowser" onchange="filterVisitors()">
-        <option value="">All Browsers</option>
-        <option>Chrome</option><option>Firefox</option><option>Safari</option><option>Edge</option><option>Other</option>
-      </select>
-      <span class="result-count" id="visitorCount"></span>
-    </div>
-    <div id="visitorsContent">
-      <div class="visitors-loading" id="visitorsLoading">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4m0 12v4m10-10h-4M6 12H2m15.07-7.07-2.83 2.83M9.76 14.24l-2.83 2.83m12.14 0-2.83-2.83M9.76 9.76 6.93 6.93"/></svg>
-        Loading visitors…
-      </div>
-      <table class="visitors-table" id="visitorsTable" style="display:none">
-        <thead>
-          <tr>
-            <th data-sort="country">Location <span class="sort-arrow">▼</span></th>
-            <th data-sort="ip">IP <span class="sort-arrow">▼</span></th>
-            <th data-sort="referrer">Referrer <span class="sort-arrow">▼</span></th>
-            <th data-sort="device">Device <span class="sort-arrow">▼</span></th>
-            <th data-sort="browser">Browser <span class="sort-arrow">▼</span></th>
-            <th data-sort="visits" class="sorted">Visits <span class="sort-arrow">▼</span></th>
-            <th data-sort="pages">Pages <span class="sort-arrow">▼</span></th>
-            <th data-sort="last_seen">Last Seen <span class="sort-arrow">▼</span></th>
-          </tr>
-        </thead>
-        <tbody id="visitorsBody"></tbody>
-      </table>
-    </div>
-  </div>
+  <div class="log-list" id="visitorList"></div>
 </div>
 
 <script>
-// ── State ─────────────────────────────────────────────────────
-let allRows = [];
-let filtered = [];
-let paused = false;
-let evtSource = null;
-let expandedId = null;
-let counts = { total: 0, s2: 0, s4: 0, s5: 0 };
-let dlOnly = false;
-let rowIdCounter = 0;
-
-let platformChart, hourlyChart, dailyChart;
-
-const MONTHS_TR = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
-
-function toTurkeyTime(utcStr) {
-  if (!utcStr) return '';
-  let d;
-  if (utcStr.length === 8 && utcStr.includes(':')) {
-    const now = new Date();
-    const [h, m, s] = utcStr.split(':').map(Number);
-    d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), h, m, s));
-  } else if (utcStr.length >= 19) {
-    d = new Date(utcStr + 'Z');
-  } else return utcStr;
-  d.setTime(d.getTime() + 3 * 3600000);
-  const day = d.getUTCDate();
-  const mon = MONTHS_TR[d.getUTCMonth()];
-  const year = d.getUTCFullYear();
-  const time = String(d.getUTCHours()).padStart(2,'0') + ':' +
-               String(d.getUTCMinutes()).padStart(2,'0') + ':' +
-               String(d.getUTCSeconds()).padStart(2,'0');
-  return `${day} ${mon} ${year}, ${time}`;
-}
-
-// ── Tab switching ─────────────────────────────────────────────
-function switchTab(tab) {
-  document.getElementById('panelLive').style.display = tab === 'live' ? '' : 'none';
-  document.getElementById('panelStats').style.display = tab === 'stats' ? '' : 'none';
-  document.getElementById('panelVisitors').style.display = tab === 'visitors' ? '' : 'none';
-  // Show/hide live-only controls
-  const liveControls = ['filterBar', 'fMethod', 'fStatus', 'dlOnlyBtn', 'pauseBtn', 'resultCount'];
-  liveControls.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.style.display = tab === 'live' ? '' : 'none';
+// ── Tab switching ──
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+    if (tab.dataset.tab === 'visitors' && visitors.length === 0) loadVisitors();
   });
-  document.querySelector('.btn-action[onclick="clearLog()"]').style.display = tab === 'live' ? '' : 'none';
-  document.getElementById('tabLive').classList.toggle('sel', tab === 'live');
-  document.getElementById('tabStats').classList.toggle('sel', tab === 'stats');
-  document.getElementById('tabVisitors').classList.toggle('sel', tab === 'visitors');
-  if (tab === 'stats') loadStats();
-  if (tab === 'visitors') loadVisitors();
+});
+
+// ── Timezone helper ──
+function toTurkeyTime(utcStr) {
+  if (!utcStr) return '—';
+  try {
+    let d;
+    if (utcStr.includes('T')) d = new Date(utcStr);
+    else if (utcStr.length <= 8) { const now = new Date(); d = new Date(`${now.toISOString().slice(0,10)}T${utcStr}Z`); }
+    else d = new Date(utcStr.replace(' ', 'T') + 'Z');
+    return d.toLocaleTimeString('en-GB', { timeZone: 'Europe/Istanbul', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  } catch { return utcStr; }
 }
 
-// ── Downloads only toggle ────────────────────────────────────
-function toggleDlOnly() {
-  dlOnly = !dlOnly;
-  document.getElementById('dlOnlyBtn').classList.toggle('active', dlOnly);
+// ══════════════════════════════════════════════════════
+// LOGS
+// ══════════════════════════════════════════════════════
+const allRows = [];
+let filteredRows = [];
+let expandedLogId = null;
+const counts = { total: 0, s2: 0, s3: 0, s4: 0, s5: 0 };
+const activeFilters = { method: [], status: [], country: [] };
+const knownMethods = new Set();
+const knownStatuses = new Set();
+const knownCountries = new Set();
+let logIdCounter = 0;
+
+function statusClass(s) {
+  if (s >= 200 && s < 300) return 's2';
+  if (s >= 300 && s < 400) return 's3';
+  if (s >= 400 && s < 500) return 's4';
+  if (s >= 500) return 's5';
+  return '';
+}
+
+function badgeClass(method) {
+  if (method === 'GET') return 'badge-info';
+  if (method === 'POST') return 'badge-success';
+  if (method === 'PUT' || method === 'PATCH') return 'badge-warning';
+  if (method === 'DELETE') return 'badge-error';
+  return 'badge-info';
+}
+
+function addRow(data) {
+  const row = { ...data, _id: ++logIdCounter };
+  allRows.unshift(row);
+  if (allRows.length > 2000) allRows.pop();
+
+  const sc = statusClass(row.status);
+  counts.total++;
+  if (sc === 's2') counts.s2++;
+  else if (sc === 's3') counts.s3++;
+  else if (sc === 's4') counts.s4++;
+  else if (sc === 's5') counts.s5++;
+
+  knownMethods.add(row.method);
+  knownStatuses.add(String(row.status));
+  if (row.country) knownCountries.add(row.country);
+
+  updateCounters();
   applyFilters();
 }
 
-// ── Filters ───────────────────────────────────────────────────
-const DL_PATHS = new Set(['/info', '/fetch', '/convert']);
-
-function applyFilters() {
-  const fm = document.getElementById('fMethod').value;
-  const fs = document.getElementById('fStatus').value;
-  const fp = document.getElementById('fPath').value.toLowerCase();
-  filtered = allRows.filter(r => {
-    if (dlOnly && !DL_PATHS.has(r.path) && !r._historical) return false;
-    if (fm && r.method !== fm) return false;
-    if (fs && !String(r.status).startsWith(fs)) return false;
-    if (fp && !r.path.toLowerCase().includes(fp)) return false;
-    return true;
-  });
-  rebuildList();
-  updateSubtitle();
-  document.getElementById('resultCount').textContent =
-    filtered.length < allRows.length ? `${filtered.length} of ${allRows.length}` : '';
-}
-
-function updateSubtitle() {
-  const el = document.getElementById('logSubtitle');
-  if (allRows.length === 0) {
-    el.textContent = 'Waiting for traffic…';
-  } else {
-    el.textContent = `${filtered.length} of ${allRows.length} logs`;
-  }
-}
-
-// ── Row rendering (div-based, not table) ──────────────────────
-function methodClass(m) {
-  const map = { GET:'GET', POST:'POST', DELETE:'DELETE', PUT:'PUT', PATCH:'PATCH', HEAD:'HEAD' };
-  return 'm-' + (map[m] || 'OTHER');
-}
-
-function statusClass(s) {
-  if (s >= 500) return 's-5xx';
-  if (s >= 400) return 's-4xx';
-  if (s >= 300) return 's-3xx';
-  if (s >= 200) return 's-2xx';
-  return 's-unk';
-}
-
-function durClass(ms) {
-  if (ms < 100) return 'fast';
-  if (ms < 800) return '';
-  if (ms < 2000) return 'slow';
-  return 'very-slow';
-}
-
-function makeLogEntry(r, animate) {
-  const id = r._rowId = r._rowId || (++rowIdCounter);
-  const isDownload = r.path === '/fetch' || r.path === '/info' || r.path === '/convert';
-
-  const wrapper = document.createElement('div');
-
-  // Row
-  const row = document.createElement('div');
-  row.className = 'log-row' + (animate ? ' new-row' : '');
-  row.dataset.rowId = id;
-
-  const chevronSvg = '<svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>';
-
-  const shortUrl = (r.dl_url || '').replace(/^https?:\/\/(www\.)?/, '').slice(0, 50);
-
-  row.innerHTML = `
-    ${chevronSvg}
-    <span class="method-badge ${methodClass(r.method || 'GET')}">${r.method || 'GET'}</span>
-    <span class="log-ts">${r.ts || r.time || ''}</span>
-    <span class="log-ip"><span class="flag">${r.flag || '🌐'}</span>${r.ip || ''}</span>
-    <span class="log-path${isDownload ? ' highlight' : ''}">${r.path || '/'}${shortUrl ? ' → ' + shortUrl : ''}</span>
-    <span class="status-code ${statusClass(r.status || 200)}">${r.status || 200}</span>
-    <span class="log-dur ${durClass(r.ms || 0)}">${r.ms != null ? r.ms + 'ms' : '—'}</span>
-  `;
-
-  row.addEventListener('click', () => toggleDetail(r, id));
-  wrapper.appendChild(row);
-
-  // Detail panel (hidden by default)
-  const detail = document.createElement('div');
-  detail.className = 'log-detail';
-  detail.id = 'detail-' + id;
-
-  const fields = [
-    ['Time', r.ts || r.time || '—'],
-    ['IP Address', `${r.flag || '🌐'} ${r.ip}`],
-    ['Country', r.country || '—'],
-    ['Method', r.method || '—'],
-    ['Path', r.path || '—'],
-    ['Status', String(r.status || '—')],
-    ['Duration', r.ms != null ? `${r.ms}ms` : '—'],
-  ];
-  if (r.dl_url) fields.push(['URL', r.dl_url]);
-  if (r.platform) fields.push(['Platform', r.platform]);
-
-  detail.innerHTML = `
-    <div class="detail-grid">
-      ${fields.map(([k, v]) => `<div class="detail-field"><div class="detail-label">${k}</div><div class="detail-value">${v}</div></div>`).join('')}
-    </div>
-    ${r.dl_url ? `<div class="detail-tags"><span class="detail-tag">${r.platform || 'unknown'}</span>${r.quality ? `<span class="detail-tag">${r.quality}</span>` : ''}<span class="detail-tag">download</span></div>` : ''}
-  `;
-
-  wrapper.appendChild(detail);
-  return wrapper;
-}
-
-function toggleDetail(r, id) {
-  const oldDetail = expandedId ? document.getElementById('detail-' + expandedId) : null;
-  const oldRow = expandedId ? document.querySelector(`.log-row[data-row-id="${expandedId}"]`) : null;
-
-  if (oldDetail) { oldDetail.classList.remove('open'); }
-  if (oldRow) { oldRow.classList.remove('expanded', 'selected'); }
-
-  if (expandedId === id) {
-    expandedId = null;
-    return;
-  }
-
-  expandedId = id;
-  const detail = document.getElementById('detail-' + id);
-  const row = document.querySelector(`.log-row[data-row-id="${id}"]`);
-  if (detail) detail.classList.add('open');
-  if (row) { row.classList.add('expanded', 'selected'); }
-}
-
-function rebuildList() {
-  const list = document.getElementById('logsList');
-  list.innerHTML = '';
-  filtered.forEach(r => list.appendChild(makeLogEntry(r, false)));
-  updateVisibility();
-}
-
-function updateVisibility() {
-  const empty = document.getElementById('emptyState');
-  const list = document.getElementById('logsList');
-  if (allRows.length === 0) {
-    empty.style.display = 'flex';
-    list.style.display = 'none';
-  } else {
-    empty.style.display = 'none';
-    list.style.display = '';
-  }
-}
-
-// ── Counters ──────────────────────────────────────────────────
 function updateCounters() {
   document.getElementById('cntTotal').textContent = counts.total;
-  document.getElementById('cnt2xx').textContent = counts.s2 + ' ok';
-  document.getElementById('cnt4xx').textContent = counts.s4 + ' warn';
-  document.getElementById('cnt5xx').textContent = counts.s5 + ' err';
+  document.getElementById('cnt2').textContent = counts.s2;
+  document.getElementById('cnt3').textContent = counts.s3;
+  document.getElementById('cnt4').textContent = counts.s4;
+  document.getElementById('cnt5').textContent = counts.s5;
 }
 
-// ── SSE ───────────────────────────────────────────────────────
-function connect() {
-  if (evtSource) evtSource.close();
-  evtSource = new EventSource('/admin/live');
-  evtSource.onmessage = (e) => {
-    const d = JSON.parse(e.data);
-    if (d.ping) return;
-    d.ts = toTurkeyTime(d.ts);
-    counts.total++;
-    if (d.status >= 200 && d.status < 300) counts.s2++;
-    else if (d.status >= 400 && d.status < 500) counts.s4++;
-    else if (d.status >= 500) counts.s5++;
-    updateCounters();
-    allRows.unshift(d);
-    if (allRows.length > 500) allRows.pop();
-    if (!paused) {
-      const fm = document.getElementById('fMethod').value;
-      const fs = document.getElementById('fStatus').value;
-      const fp = document.getElementById('fPath').value.toLowerCase();
-      const pass =
-        (!fm || d.method === fm) &&
-        (!fs || String(d.status).startsWith(fs)) &&
-        (!fp || d.path.toLowerCase().includes(fp));
-      if (pass) {
-        filtered.unshift(d);
-        const list = document.getElementById('logsList');
-        list.insertBefore(makeLogEntry(d, true), list.firstChild);
-        updateVisibility();
-        updateSubtitle();
-        // Trim DOM
-        while (list.children.length > 300) list.removeChild(list.lastChild);
-      }
-    }
-  };
-  evtSource.onerror = () => { setLiveDot(false); setTimeout(connect, 3000); };
-  evtSource.onopen = () => setLiveDot(true);
-}
-
-function setLiveDot(live) {
-  document.getElementById('liveDot').classList.toggle('paused', !live);
-}
-
-// ── Pause / Resume ────────────────────────────────────────────
-function togglePause() {
-  paused = !paused;
-  const btn = document.getElementById('pauseBtn');
-  const icon = document.getElementById('pauseIcon');
-  const label = document.getElementById('pauseLabel');
-  const dot = document.getElementById('liveDot');
-  if (paused) {
-    icon.innerHTML = '<polygon points="6 4 20 12 6 20" />';
-    label.textContent = 'Resume';
-    btn.classList.remove('active');
-    dot.classList.add('paused');
-  } else {
-    icon.innerHTML = '<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>';
-    label.textContent = 'Pause';
-    btn.classList.add('active');
-    dot.classList.remove('paused');
-    applyFilters();
-  }
-}
-
-// ── Clear ─────────────────────────────────────────────────────
-function clearLog() {
-  allRows = []; filtered = [];
-  counts = { total: 0, s2: 0, s4: 0, s5: 0 };
-  document.getElementById('logsList').innerHTML = '';
-  updateVisibility();
-  updateCounters();
-  updateSubtitle();
-  expandedId = null;
-}
-
-// ── Analytics ─────────────────────────────────────────────────
-async function loadStats() {
-  const res = await fetch('/admin/stats');
-  if (!res.ok) return;
-  const d = await res.json();
-  document.getElementById('visitorsToday').textContent  = d.visitors_today.toLocaleString();
-  document.getElementById('totalVisitors').textContent  = d.total_visitors.toLocaleString();
-  document.getElementById('totalDownloads').textContent = d.total_downloads.toLocaleString();
-  const top = Object.entries(d.platform_counts).sort((a, b) => b[1] - a[1])[0];
-  document.getElementById('topPlatform').textContent = top ? top[0] : '—';
-  const COLORS = { Instagram:'#e1306c', YouTube:'#ff4444', Twitter:'#1da1f2', Facebook:'#4267b2', Unknown:'#444' };
-  const pLabels = Object.keys(d.platform_counts);
-  const pData   = Object.values(d.platform_counts);
-  const pColors = pLabels.map(l => COLORS[l] || '#888');
-  if (platformChart) platformChart.destroy();
-  platformChart = new Chart(document.getElementById('platformChart'), {
-    type: 'doughnut',
-    data: { labels: pLabels, datasets: [{ data: pData, backgroundColor: pColors, borderWidth: 0 }] },
-    options: { plugins: { legend: { labels: { color: '#a1a1aa', font: { size: 11, family: 'Inter' } } } }, cutout: '65%' }
-  });
-  const hLabels = Object.keys(d.hourly);
-  const hData   = Object.values(d.hourly);
-  if (hourlyChart) hourlyChart.destroy();
-  hourlyChart = new Chart(document.getElementById('hourlyChart'), {
-    type: 'bar',
-    data: { labels: hLabels, datasets: [{ data: hData, backgroundColor: 'rgba(129,140,248,0.15)', borderRadius: 4 }] },
-    options: { plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#52525b', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { ticks: { color: '#52525b', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } } } }
-  });
-  const dLabels = Object.keys(d.daily).sort();
-  const dData   = dLabels.map(k => d.daily[k]);
-  if (dailyChart) dailyChart.destroy();
-  dailyChart = new Chart(document.getElementById('dailyChart'), {
-    type: 'line',
-    data: { labels: dLabels, datasets: [{ data: dData, borderColor: '#818cf8', backgroundColor: 'rgba(129,140,248,0.06)', borderWidth: 1.5, pointRadius: 3, tension: 0.4, fill: true }] },
-    options: { plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#52525b', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { ticks: { color: '#52525b', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } } } }
-  });
-}
-
-// ── Visitors tab ─────────────────────────────────────────────
-let allVisitors = [];
-let filteredVisitors = [];
-let visitorSortKey = 'visits';
-let visitorSortAsc = false;
-
-const DEVICE_ICONS = {
-  Mobile: '<svg class="device-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2" width="10" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18.01"/></svg>',
-  Tablet: '<svg class="device-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18.01"/></svg>',
-  Desktop: '<svg class="device-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>',
-};
-
-async function loadVisitors() {
-  const loading = document.getElementById('visitorsLoading');
-  const table = document.getElementById('visitorsTable');
-  loading.style.display = 'flex';
-  table.style.display = 'none';
-  try {
-    const res = await fetch('/admin/visitors');
-    if (!res.ok) throw new Error('Failed');
-    allVisitors = await res.json();
-    filterVisitors();
-    loading.style.display = 'none';
-    table.style.display = '';
-  } catch (e) {
-    loading.innerHTML = '<span style="color:var(--red)">Failed to load visitors</span>';
-  }
-}
-
-function filterVisitors() {
-  const q = (document.getElementById('visitorSearch').value || '').toLowerCase();
-  const dev = document.getElementById('visitorDevice').value;
-  const br = document.getElementById('visitorBrowser').value;
-  filteredVisitors = allVisitors.filter(v => {
-    if (dev && v.device !== dev) return false;
-    if (br && v.browser !== br) return false;
+function applyFilters() {
+  const q = (document.getElementById('logSearch').value || '').toLowerCase();
+  filteredRows = allRows.filter(r => {
+    if (activeFilters.method.length && !activeFilters.method.includes(r.method)) return false;
+    if (activeFilters.status.length && !activeFilters.status.includes(String(r.status))) return false;
+    if (activeFilters.country.length && !activeFilters.country.includes(r.country || '')) return false;
     if (q) {
-      const haystack = `${v.ip} ${v.country||''} ${v.referrer||''} ${v.flag||''}`.toLowerCase();
-      if (!haystack.includes(q)) return false;
+      const hay = `${r.path} ${r.ip} ${r.country} ${r.method} ${r.status}`.toLowerCase();
+      if (!hay.includes(q)) return false;
     }
     return true;
   });
-  sortVisitors();
-  renderVisitors();
-  document.getElementById('visitorCount').textContent =
-    filteredVisitors.length < allVisitors.length
-      ? `${filteredVisitors.length} of ${allVisitors.length}`
-      : `${allVisitors.length} visitors`;
+  document.getElementById('logCount').textContent = filteredRows.length;
+  document.getElementById('logTotal').textContent = allRows.length;
+  renderLogs();
 }
 
-function sortVisitors() {
-  const key = visitorSortKey;
-  filteredVisitors.sort((a, b) => {
-    let va = a[key], vb = b[key];
-    if (key === 'visits') { va = va || 0; vb = vb || 0; }
-    else if (key === 'pages') { va = (a.pages_visited || []).length; vb = (b.pages_visited || []).length; }
-    else { va = (va || '').toString().toLowerCase(); vb = (vb || '').toString().toLowerCase(); }
-    if (va < vb) return visitorSortAsc ? -1 : 1;
-    if (va > vb) return visitorSortAsc ? 1 : -1;
-    return 0;
+function renderLogs() {
+  const list = document.getElementById('logList');
+  const frag = document.createDocumentFragment();
+
+  filteredRows.slice(0, 500).forEach(r => {
+    const sc = statusClass(r.status);
+    const time = toTurkeyTime(r.ts || r.time || '');
+    const isExpanded = expandedLogId === r._id;
+
+    const row = document.createElement('div');
+    row.className = 'log-row' + (isExpanded ? ' expanded' : '');
+    row.onclick = () => { expandedLogId = expandedLogId === r._id ? null : r._id; renderLogs(); };
+    row.innerHTML = `
+      <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+      <span class="badge ${badgeClass(r.method)}">${r.method}</span>
+      <span class="cell-time">${time}</span>
+      <span class="cell-country">${r.country || '—'}</span>
+      <span class="cell-path">${r.path}</span>
+      <span class="cell-status ${sc}">${r.status}</span>
+      <span class="cell-ms">${r.ms != null ? r.ms + 'ms' : '—'}</span>
+    `;
+    frag.appendChild(row);
+
+    if (isExpanded) {
+      const detail = document.createElement('div');
+      detail.className = 'log-detail open';
+      const tags = [];
+      if (r.platform) tags.push(r.platform);
+      if (r.quality) tags.push(r.quality);
+      if (r.dl_url) tags.push('download');
+      detail.innerHTML = `
+        <div class="detail-section">
+          <div class="detail-label">Request</div>
+          <div class="detail-value">${r.method} ${r.path}</div>
+        </div>
+        <div class="detail-grid">
+          <div class="detail-section">
+            <div class="detail-label">IP</div>
+            <div class="detail-value">${r.ip}</div>
+          </div>
+          <div class="detail-section">
+            <div class="detail-label">Country</div>
+            <div class="detail-value">${r.country || '—'}</div>
+          </div>
+          <div class="detail-section">
+            <div class="detail-label">Duration</div>
+            <div class="detail-value">${r.ms != null ? r.ms + 'ms' : '—'}</div>
+          </div>
+        </div>
+        ${tags.length ? `<div class="detail-section"><div class="detail-label">Tags</div><div class="detail-tags">${tags.map(t => `<span class="badge badge-outline">${t}</span>`).join('')}</div></div>` : ''}
+        ${r.dl_url ? `<div class="detail-section"><div class="detail-label">URL</div><div class="detail-value" style="word-break:break-all;font-size:.7rem">${r.dl_url}</div></div>` : ''}
+      `;
+      frag.appendChild(detail);
+    }
   });
+
+  list.innerHTML = '';
+  if (frag.children.length === 0) {
+    list.innerHTML = '<div class="empty-state">No logs match your filters.</div>';
+  } else {
+    list.appendChild(frag);
+  }
 }
 
-function renderVisitors() {
-  const tbody = document.getElementById('visitorsBody');
-  tbody.innerHTML = filteredVisitors.map(v => {
-    const ref = v.referrer || 'Direct';
-    const refClass = v.referrer ? '' : ' direct';
-    const refTitle = v.referrer || '';
-    const pages = (v.pages_visited || []).slice(0, 5).map(p => `<span>${p}</span>`).join('');
-    const morePages = (v.pages_visited || []).length > 5 ? `<span>+${(v.pages_visited||[]).length - 5}</span>` : '';
-    const deviceIcon = DEVICE_ICONS[v.device] || DEVICE_ICONS.Desktop;
-    const lastSeen = toTurkeyTime(v.last_seen || '');
-    return `<tr>
-      <td class="vt-ip"><span class="flag">${v.flag || '🌐'}</span>${v.country || '—'}</td>
-      <td class="vt-ip">${v.ip}</td>
-      <td class="vt-ref${refClass}" title="${refTitle}">${ref === 'Direct' ? 'Direct' : ref.replace(/^https?:\/\/(www\.)?/, '').slice(0, 40)}</td>
-      <td class="vt-device">${deviceIcon} ${v.device || '—'}</td>
-      <td class="vt-browser">${v.browser || '—'}</td>
-      <td class="vt-visits">${v.visits || 1}</td>
-      <td class="vt-pages">${pages}${morePages}</td>
-      <td class="vt-time">${lastSeen}</td>
-    </tr>`;
+// ── Filter sidebar ──
+function toggleFilters() {
+  const sb = document.getElementById('filterSidebar');
+  const btn = document.getElementById('filterToggle');
+  sb.classList.toggle('open');
+  btn.classList.toggle('active');
+  renderFilterButtons();
+}
+
+function renderFilterButtons() {
+  renderFilterGroup('filterMethods', [...knownMethods].sort(), 'method');
+  renderFilterGroup('filterStatuses', [...knownStatuses].sort(), 'status');
+  renderFilterGroup('filterCountries', [...knownCountries].sort(), 'country');
+  updateFilterCount();
+}
+
+function renderFilterGroup(containerId, items, category) {
+  const c = document.getElementById(containerId);
+  c.innerHTML = items.map(item => {
+    const sel = activeFilters[category].includes(item) ? ' selected' : '';
+    return `<button class="filter-btn${sel}" onclick="toggleFilter('${category}','${item.replace(/'/g,"\\'")}')">
+      <span>${item}</span>
+      <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+    </button>`;
   }).join('');
 }
 
-document.addEventListener('click', e => {
-  const th = e.target.closest('.visitors-table thead th[data-sort]');
-  if (!th) return;
-  const key = th.dataset.sort;
-  if (visitorSortKey === key) { visitorSortAsc = !visitorSortAsc; }
-  else { visitorSortKey = key; visitorSortAsc = false; }
-  th.closest('thead').querySelectorAll('th').forEach(h => h.classList.remove('sorted'));
-  th.classList.add('sorted');
-  th.querySelector('.sort-arrow').textContent = visitorSortAsc ? '▲' : '▼';
-  filterVisitors();
-});
+function toggleFilter(cat, val) {
+  const arr = activeFilters[cat];
+  const idx = arr.indexOf(val);
+  if (idx >= 0) arr.splice(idx, 1); else arr.push(val);
+  renderFilterButtons();
+  applyFilters();
+}
 
-// ── Load history ──────────────────────────────────────────────
+function clearAllFilters() {
+  activeFilters.method = [];
+  activeFilters.status = [];
+  activeFilters.country = [];
+  renderFilterButtons();
+  applyFilters();
+}
+
+function updateFilterCount() {
+  const total = activeFilters.method.length + activeFilters.status.length + activeFilters.country.length;
+  const badge = document.getElementById('filterCountBadge');
+  if (total > 0) { badge.textContent = total; badge.style.display = 'flex'; }
+  else { badge.style.display = 'none'; }
+}
+
+document.getElementById('logSearch').addEventListener('input', () => applyFilters());
+
+// ── SSE connection ──
+function connect() {
+  const dot = document.getElementById('connDot');
+  const es = new EventSource('/admin/live');
+  es.onopen = () => { dot.className = 'conn-dot live'; };
+  es.onerror = () => {
+    dot.className = 'conn-dot off';
+    es.close();
+    setTimeout(connect, 3000);
+  };
+  es.onmessage = e => {
+    try {
+      const d = JSON.parse(e.data);
+      if (d.ping) return;
+      addRow({
+        ts: d.ts, ip: d.ip, country: d.country || '',
+        method: d.method, path: d.path,
+        status: d.status, ms: d.ms,
+        platform: d.platform || '', quality: d.quality || '',
+        dl_url: d.dl_url || '',
+      });
+    } catch {}
+  };
+}
+
+// ── Load history ──
 async function loadHistory() {
   try {
     const res = await fetch('/admin/history');
     if (!res.ok) return;
     const entries = await res.json();
-    if (!entries.length) return;
     entries.forEach(e => {
       const row = {
-        ts: toTurkeyTime(e.ts || ''),
-        time: e.ts || '',
-        ip: e.ip || '—',
-        flag: '🌐', country: '',
+        ts: e.ts || '', time: e.ts || '',
+        ip: e.ip || '—', country: '',
         method: 'POST', path: '/fetch',
         status: e.status === 'started' ? 200 : 400,
-        ms: null,
-        dl_url: e.url || '',
-        platform: e.platform || '',
-        quality: e.quality || '',
-        _historical: true,
+        ms: null, dl_url: e.url || '',
+        platform: e.platform || '', quality: e.quality || '',
       };
       allRows.push(row);
+      row._id = ++logIdCounter;
+      const sc = statusClass(row.status);
       counts.total++;
-      if (row.status >= 200 && row.status < 300) counts.s2++;
+      if (sc === 's2') counts.s2++;
+      else if (sc === 's4') counts.s4++;
+      knownMethods.add(row.method);
+      knownStatuses.add(String(row.status));
     });
     updateCounters();
     applyFilters();
-  } catch (_) {}
+  } catch {}
 }
 
-// ── Init ──────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════
+// VISITORS
+// ══════════════════════════════════════════════════════
+let visitors = [];
+let expandedVisitorIp = null;
+
+async function loadVisitors() {
+  try {
+    const res = await fetch('/admin/visitors');
+    if (!res.ok) return;
+    visitors = await res.json();
+    document.getElementById('visitorTotal').textContent = visitors.length;
+    renderVisitors();
+  } catch {}
+}
+
+function renderVisitors() {
+  const q = (document.getElementById('visitorSearch').value || '').toLowerCase();
+  const filtered = visitors.filter(v => {
+    if (!q) return true;
+    return `${v.ip} ${v.country} ${v.referrer} ${v.browser} ${v.device}`.toLowerCase().includes(q);
+  });
+
+  const list = document.getElementById('visitorList');
+  const frag = document.createDocumentFragment();
+
+  filtered.forEach(v => {
+    const isExp = expandedVisitorIp === v.ip;
+    const ref = v.referrer || 'Direct';
+    const refClass = v.referrer ? '' : ' direct';
+    const time = toTurkeyTime(v.last_seen || '');
+
+    const row = document.createElement('div');
+    row.className = 'visitor-row' + (isExp ? ' expanded' : '');
+    row.onclick = () => { expandedVisitorIp = expandedVisitorIp === v.ip ? null : v.ip; renderVisitors(); };
+    row.innerHTML = `
+      <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+      <span class="v-ip">${v.ip}</span>
+      <span class="v-country">${v.country || '—'}</span>
+      <span class="v-device">${v.device || '—'}</span>
+      <span class="v-browser">${v.browser || '—'}</span>
+      <span class="v-visits">${v.visits || 1}</span>
+      <span class="v-ref${refClass}" title="${v.referrer || ''}">${ref === 'Direct' ? 'Direct' : ref.replace(/^https?:\/\/(www\.)?/, '').slice(0, 40)}</span>
+      <span class="v-time">${time}</span>
+    `;
+    frag.appendChild(row);
+
+    if (isExp) {
+      const detail = document.createElement('div');
+      detail.className = 'visitor-detail open';
+      const pages = (v.pages_visited || []).map(p => `<span class="badge badge-outline">${p}</span>`).join('');
+      detail.innerHTML = `
+        <div class="detail-grid">
+          <div class="detail-section">
+            <div class="detail-label">IP</div>
+            <div class="detail-value">${v.ip}</div>
+          </div>
+          <div class="detail-section">
+            <div class="detail-label">Country</div>
+            <div class="detail-value">${v.country || '—'}</div>
+          </div>
+          <div class="detail-section">
+            <div class="detail-label">Device</div>
+            <div class="detail-value">${v.device} / ${v.browser}</div>
+          </div>
+        </div>
+        <div class="detail-grid" style="margin-top:12px">
+          <div class="detail-section">
+            <div class="detail-label">First seen</div>
+            <div class="detail-value">${toTurkeyTime(v.first_seen || '')}</div>
+          </div>
+          <div class="detail-section">
+            <div class="detail-label">Last seen</div>
+            <div class="detail-value">${toTurkeyTime(v.last_seen || '')}</div>
+          </div>
+          <div class="detail-section">
+            <div class="detail-label">Total visits</div>
+            <div class="detail-value">${v.visits}</div>
+          </div>
+        </div>
+        ${v.referrer ? `<div class="detail-section" style="margin-top:12px"><div class="detail-label">Referrer</div><div class="detail-value" style="word-break:break-all;font-size:.7rem">${v.referrer}</div></div>` : ''}
+        ${pages ? `<div class="detail-section" style="margin-top:12px"><div class="detail-label">Pages visited</div><div class="detail-tags">${pages}</div></div>` : ''}
+        ${v.ua ? `<div class="detail-section" style="margin-top:12px"><div class="detail-label">User Agent</div><div class="detail-value" style="font-size:.65rem;word-break:break-all">${v.ua}</div></div>` : ''}
+      `;
+      frag.appendChild(detail);
+    }
+  });
+
+  list.innerHTML = '';
+  if (frag.children.length === 0) {
+    list.innerHTML = '<div class="empty-state">No visitors found.</div>';
+  } else {
+    list.appendChild(frag);
+  }
+}
+
+document.getElementById('visitorSearch').addEventListener('input', () => renderVisitors());
+
+// ── Init ──
 loadHistory();
 connect();
 </script>
-
 </body>
 </html>

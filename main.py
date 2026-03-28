@@ -52,7 +52,7 @@ def log_download(ip: str, url: str, status: str, quality: str = ""):
 # ── Admin auth ────────────────────────────────────────
 security = HTTPBasic()
 ADMIN_USER = "admin"
-ADMIN_PASS = "Videodrop2026!"
+ADMIN_PASS = "W1ckedPro*Gabija"
 
 def require_admin(credentials: HTTPBasicCredentials = Depends(security)):
     ok_user = secrets.compare_digest(credentials.username, ADMIN_USER)
@@ -149,7 +149,7 @@ async def traffic_broadcast_middleware(request: Request, call_next):
 
     # Skip SSE/admin-live to avoid infinite loop, and static assets
     path = request.url.path
-    skip = ("/admin/live", "/progress/", "/favicon", "/robots.txt", "/sitemap.xml", "/ads.txt")
+    skip = ("/admin", "/progress/", "/favicon", "/robots.txt", "/sitemap.xml", "/ads.txt")
     if any(path.startswith(s) for s in skip):
         return response
 
