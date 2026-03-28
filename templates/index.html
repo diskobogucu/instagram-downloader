@@ -115,16 +115,16 @@
     --text-dim: #999;
     --text-muted: #666;
     --white: #fff;
-    --accent: #818cf8;
-    --accent-2: #f472b6;
-    --accent-glow: rgba(129,140,248,0.15);
+    --accent: #d4c5a9;
+    --accent-2: #c2b280;
+    --accent-glow: rgba(212,197,169,0.15);
     --error: #ef4444;
     --error-hover: #f87171;
     --success: #34d399;
     --radius: 16px;
   }
 
-  html { font-size: 16px; background: #050505; }
+  html { font-size: 16px; background: #0a0a0a; }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -132,7 +132,7 @@
 
   body {
     font-family: 'Outfit', sans-serif;
-    background: #050505;
+    background: linear-gradient(to bottom right, #171717, #000000);
     color: var(--text);
     min-height: 100vh;
     min-height: 100dvh;
@@ -148,9 +148,9 @@
     position: fixed;
     inset: 0;
     background:
-      radial-gradient(ellipse 600px 400px at 15% 30%, rgba(99,102,241,0.08) 0%, transparent 70%),
-      radial-gradient(ellipse 500px 350px at 85% 60%, rgba(244,63,94,0.07) 0%, transparent 70%),
-      radial-gradient(ellipse 400px 300px at 50% 80%, rgba(168,85,247,0.05) 0%, transparent 70%);
+      radial-gradient(ellipse 600px 400px at 15% 30%, rgba(212,197,169,0.04) 0%, transparent 70%),
+      radial-gradient(ellipse 500px 350px at 85% 60%, rgba(194,178,128,0.03) 0%, transparent 70%),
+      radial-gradient(ellipse 400px 300px at 50% 80%, rgba(212,197,169,0.03) 0%, transparent 70%);
     pointer-events: none;
     z-index: 0;
   }
@@ -161,7 +161,7 @@
     position: fixed;
     inset: 0;
     background:
-      radial-gradient(ellipse at center, transparent 40%, #050505 100%),
+      radial-gradient(ellipse at center, transparent 40%, #0a0a0a 100%),
       url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
     pointer-events: none;
     z-index: 0;
@@ -190,8 +190,8 @@
     width: 220px; height: 70px;
     border-radius: 40px;
     top: 10%; left: 5%;
-    background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(168,85,247,0.06));
-    box-shadow: 0 0 60px rgba(99,102,241,0.08);
+    background: linear-gradient(135deg, rgba(212,197,169,0.08), rgba(194,178,128,0.04));
+    box-shadow: 0 0 60px rgba(212,197,169,0.05);
     animation-delay: 0s, 1.4s;
     --float-y: 20px;
     --float-rotate: 4deg;
@@ -200,8 +200,8 @@
     width: 160px; height: 160px;
     border-radius: 50%;
     top: 60%; right: 8%;
-    background: radial-gradient(circle, rgba(244,63,94,0.1), rgba(251,146,60,0.04));
-    box-shadow: 0 0 80px rgba(244,63,94,0.06);
+    background: radial-gradient(circle, rgba(194,178,128,0.07), rgba(212,197,169,0.03));
+    box-shadow: 0 0 80px rgba(194,178,128,0.04);
     animation-delay: 0.2s, 1.6s;
     --float-y: -15px;
     --float-rotate: 0deg;
@@ -210,8 +210,8 @@
     width: 240px; height: 60px;
     border-radius: 30px;
     top: 30%; right: 3%;
-    background: linear-gradient(135deg, rgba(59,130,246,0.08), rgba(99,102,241,0.04));
-    box-shadow: 0 0 50px rgba(59,130,246,0.06);
+    background: linear-gradient(135deg, rgba(212,197,169,0.06), rgba(194,178,128,0.03));
+    box-shadow: 0 0 50px rgba(212,197,169,0.04);
     animation-delay: 0.4s, 1.8s;
     --float-y: 18px;
     --float-rotate: -3deg;
@@ -220,8 +220,8 @@
     width: 100px; height: 100px;
     border-radius: 24px;
     bottom: 18%; left: 12%;
-    background: linear-gradient(135deg, rgba(168,85,247,0.1), rgba(236,72,153,0.05));
-    box-shadow: 0 0 40px rgba(168,85,247,0.06);
+    background: linear-gradient(135deg, rgba(194,178,128,0.08), rgba(212,197,169,0.04));
+    box-shadow: 0 0 40px rgba(194,178,128,0.04);
     animation-delay: 0.6s, 2.0s;
     --float-y: -12px;
     --float-rotate: 5deg;
@@ -448,22 +448,22 @@
   /* ── Download button (below input) ── */
   .btn-fetch {
     width: 100%;
-    background: linear-gradient(135deg, #818cf8, #a78bfa);
+    background: linear-gradient(135deg, #d4c5a9, #c2b280);
     border: none;
-    color: #fff;
+    color: #0a0a0a;
     font-family: 'Outfit', sans-serif;
-    font-size: 0.88rem;
+    font-size: 0.85rem;
     font-weight: 600;
-    padding: 14px 20px;
-    border-radius: 12px;
+    padding: 12px 18px;
+    border-radius: 10px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
     white-space: nowrap;
-    transition: transform 0.2s, box-shadow 0.3s, opacity 0.2s;
-    box-shadow: 0 0 20px rgba(129,140,248,0.2);
+    transition: all 0.3s ease;
+    box-shadow: 0 0 20px rgba(212,197,169,0.15);
     position: relative;
     overflow: hidden;
     margin-top: 10px;
@@ -473,19 +473,16 @@
     content: '';
     position: absolute;
     inset: 0;
-    background: linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.12) 50%, transparent 60%);
-    background-size: 250% 250%;
-    animation: btnShine 3s ease-in-out infinite;
+    background: linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.2) 50%, transparent 60%);
+    transform: translateX(-100%);
+    transition: transform 0.8s ease;
     pointer-events: none;
   }
 
-  @keyframes btnShine {
-    0%, 100% { background-position: 200% 0; }
-    50% { background-position: -50% 0; }
-  }
+  .btn-fetch:hover::before { transform: translateX(100%); }
 
-  .btn-fetch:hover { transform: translateY(-1px); box-shadow: 0 0 30px rgba(129,140,248,0.3); }
-  .btn-fetch:active { transform: scale(0.98) translateY(0); }
+  .btn-fetch:hover { transform: translateY(-1px); box-shadow: 0 0 30px rgba(212,197,169,0.25); }
+  .btn-fetch:active { transform: scale(0.97) translateY(0); }
   .btn-fetch:disabled { opacity: 0.3; cursor: not-allowed; transform: none; box-shadow: none; }
 
   .spinner {
@@ -592,8 +589,8 @@
   }
 
   .btn-dl:hover {
-    background: rgba(129,140,248,0.08);
-    border-color: rgba(129,140,248,0.2);
+    background: rgba(212,197,169,0.08);
+    border-color: rgba(212,197,169,0.2);
     color: var(--white);
     box-shadow: 0 0 20px rgba(129,140,248,0.08);
     transform: translateY(-1px);
@@ -908,7 +905,7 @@
 
   .progress-bar-fill {
     height: 100%;
-    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    background: linear-gradient(90deg, var(--accent), #bfa87a);
     border-radius: 99px;
     width: 0%;
     transition: width 0.35s ease;
